@@ -23,7 +23,8 @@ import {
   Trash2,
   Plus,
   Settings,
-  Landmark
+  Landmark,
+  LayoutList
 } from "lucide-react";
 import { fetchInventory, searchContent } from "@/services/api";
 import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "@/types";
@@ -73,7 +74,6 @@ const GraphView = ({ data, isEmbedded = false, onClose }: { data: Artifact[], is
     <>
       <div className="mb-12 px-4">
         <h2 className="text-[28px] font-medium tracking-tight text-gray-900 mb-2">Mapa de Conexões</h2>
-        <p className="text-gray-500 font-sans">Explore como produtos, subprodutos e mapas se relacionam</p>
       </div>
       
       <div className="flex-1 p-12 bg-gray-50/30 rounded-[50px] border border-gray-100 relative overflow-auto custom-scrollbar select-none">
@@ -694,7 +694,7 @@ export default function App() {
         setAppState("inventory_table");
         setExpandedInventoryRows(new Set([data.resultados[0].id]));
       } else {
-        setAppState("decision");
+        setAppState("results");
       }
     } catch (error) {
       console.error("Search failed", error);
@@ -957,6 +957,7 @@ export default function App() {
     if (appState === "decision") return null;
 
     const modes = [
+      { id: "results", label: "Cards", icon: LayoutList },
       { id: "inventory_table", label: "Inventário", icon: Landmark },
       { id: "insights", label: "Insights", icon: Sparkles },
       { id: "graph", label: "Conexões", icon: Network }
@@ -966,18 +967,11 @@ export default function App() {
       <div className="flex flex-col items-center mb-12">
         <div className="bg-gray-100/50 p-1.5 rounded-[24px] border border-gray-100 shadow-sm flex gap-2">
           {modes.map(mode => {
-            const isActive = appState === mode.id || (appState === "results" && mode.id === "inventory_table");
+            const isActive = appState === mode.id;
             return (
               <button
                 key={mode.id}
-                onClick={() => {
-                  if (mode.id === "graph") {
-                    setShowGraph(true);
-                  } else {
-                    setShowGraph(false);
-                  }
-                  setAppState(mode.id as any);
-                }}
+                onClick={() => setAppState(mode.id as any)}
                 className={`flex items-center gap-3 px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all duration-300
                   ${isActive 
                     ? "bg-white shadow-lg text-bradesco-red scale-105" 
@@ -1026,6 +1020,7 @@ export default function App() {
                   <span className="text-xl font-medium text-gray-400 capitalize">
                     {appState === "initial" && "Buscador"}
                     {appState === "inventory_table" && "Inventário"}
+                    {appState === "results" && "Cards"}
                     {appState === "insights" && "Insights"}
                     {appState === "graph" && "Conexões"}
                     {appState === "empty" && "Nenhum Resultado"}
@@ -1049,6 +1044,16 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4 text-sm font-medium text-gray-500 shrink-0">
+            {appState !== "initial" && appState !== "decision" && (
+              <button 
+                onClick={resetSearch}
+                className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-100 shadow-sm hover:border-bradesco-red hover:text-bradesco-red transition-all font-bold text-xs uppercase tracking-wider h-10"
+              >
+                <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                Voltar ao início
+              </button>
+            )}
+            
             {!loading && (appState === "results" || appState === "inventory_table" || appState === "insights") && (
               <button 
                 onClick={() => setShowExportModal(true)}
@@ -1248,7 +1253,7 @@ export default function App() {
                   O que você quer fazer agora?
                 </p>
                 <div className="flex flex-col sm:flex-row gap-6 items-center">
-                  <button className="bg-white border border-gray-200 hover:border-bradesco-red hover:text-bradesco-red text-gray-800 px-10 py-4 rounded-full font-bold transition-all shadow-sm hover:shadow-md min-w-[200px]" onClick={() => setAppState("inventory_table")}>Ver inventário</button>
+                  <button className="bg-white border border-gray-200 hover:border-bradesco-red hover:text-bradesco-red text-gray-800 px-10 py-4 rounded-full font-bold transition-all shadow-sm hover:shadow-md min-w-[200px]" onClick={() => setAppState("results")}>Ver resultados</button>
                   <button className="bg-white border border-gray-200 hover:border-bradesco-red hover:text-bradesco-red text-gray-800 px-10 py-4 rounded-full font-bold transition-all shadow-sm hover:shadow-md min-w-[200px]" onClick={() => setAppState("insights")}>Ver insights</button>
                   <button className="text-gray-400 hover:text-bradesco-red font-bold px-8 py-4 transition-colors" onClick={resetSearch}>Continuar buscando</button>
                 </div>
@@ -1550,17 +1555,20 @@ export default function App() {
             </motion.section>
           )}
 
-          {/* Graph Visualization Modal */}
+          {/* Graph Visualization Section */}
           <AnimatePresence>
-            {(showGraph || appState === "graph") && insights && (
-              <GraphView 
-                data={results} 
-                isEmbedded={appState === "graph" && !showGraph}
-                onClose={() => {
-                  setShowGraph(false);
-                  if (appState === "graph") setAppState("inventory_table");
-                }} 
-              />
+            {appState === "graph" && insights && (
+              <motion.section 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="graph-container pb-20"
+              >
+                <GraphView 
+                  data={results} 
+                  isEmbedded={true}
+                />
+              </motion.section>
             )}
           </AnimatePresence>
 
@@ -2042,15 +2050,6 @@ export default function App() {
                   </motion.div>
                 )}
               </AnimatePresence>
-              
-              <div className="flex justify-between items-center mt-12 bg-white/30 backdrop-blur-md p-6 rounded-[32px] border border-gray-100">
-                 <button className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-gray-900 transition-colors" onClick={resetSearch}>
-                   <ArrowRight className="w-4 h-4 rotate-180" /> Voltar ao início
-                 </button>
-                 <div className="text-[9px] font-black text-gray-300 uppercase tracking-widest">
-                    Bradesco Salla.Mkt © 2025
-                 </div>
-              </div>
             </motion.section>
           )}
         </section>
