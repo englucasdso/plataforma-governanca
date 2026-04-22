@@ -85,10 +85,6 @@ const GraphView = ({ data, isEmbedded = false, onClose }: { data: Artifact[], is
 
   const content = (
     <>
-      <div className="mb-12 px-4">
-        <h2 className="text-[28px] font-medium tracking-tight text-gray-900 mb-2">Mapa de Conexões</h2>
-      </div>
-      
       <div className="flex-1 p-12 bg-gray-50/30 rounded-[50px] border border-gray-100 relative overflow-auto custom-scrollbar select-none">
         <div className="flex flex-col gap-24 min-w-max">
           {products.map((product, pIdx) => {
@@ -305,8 +301,6 @@ const GraphView = ({ data, isEmbedded = false, onClose }: { data: Artifact[], is
             <h1 className="brand-text text-2xl font-black tracking-tight text-gray-900 transition-colors">
               Hub de Artefatos
             </h1>
-            <div className="h-6 w-px bg-gray-200" />
-            <span className="text-xl font-medium text-gray-400 capitalize">Conexões</span>
          </div>
          <button onClick={() => { if (onClose) onClose(); }} className="p-4 hover:bg-gray-100 rounded-full transition-all hover:rotate-90">
             <X className="w-6 h-6 text-gray-400" />
@@ -881,29 +875,6 @@ export default function App() {
     );
   };
 
-  const handleExportFiltered = (format: "csv" | "json") => {
-    if (format === "json") {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredInventory, null, 2));
-      const downloadAnchorNode = document.createElement("a");
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", "hub_inventario_filtrado.json");
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
-    } else {
-      const headers = Object.keys(filteredInventory[0] || {}).join(",");
-      const rows = filteredInventory.map(obj => Object.values(obj).map(val => `"${val}"`).join(","));
-      const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "hub_inventario_filtrado.csv");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    }
-  };
-
   const useSuggestion = (text: string) => {
     setQuery(text);
     executeSearch(text);
@@ -934,18 +905,17 @@ export default function App() {
 
   const handleExport = async (format: "csv" | "json") => {
     try {
-      const data = await fetchInventory();
-      const items = data.resultados;
+      const items = filteredInventory;
 
       if (format === "json") {
-        downloadFile(JSON.stringify(items, null, 2), "inventario_hub.json", "application/json");
+        downloadFile(JSON.stringify(items, null, 2), "inventario_hub_filtrado.json", "application/json");
       } else {
         const headers = Object.keys(items[0]).join(",");
         const rows = items.map((item: any) => 
           Object.values(item).map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")
         );
         const csv = [headers, ...rows].join("\n");
-        downloadFile(csv, "inventario_hub.csv", "text/csv");
+        downloadFile(csv, "inventario_hub_filtrado.csv", "text/csv");
       }
       setShowExportModal(false);
     } catch (error) {
@@ -1034,22 +1004,9 @@ export default function App() {
               <h1 className="brand-text text-2xl font-black tracking-tight text-gray-900 group-hover:text-red-600 transition-colors">
                 Hub de Artefatos
               </h1>
-              {!loading && appState !== "decision" && appState !== "results" && (
-                <>
-                  <div className="h-6 w-px bg-gray-200" />
-                  <span className="text-xl font-medium text-gray-400 capitalize">
-                    {appState === "initial" && "Buscador"}
-                    {appState === "inventory_table" && "Inventário"}
-                    {appState === "results" && "Cards"}
-                    {appState === "insights" && "Insights"}
-                    {appState === "graph" && "Conexões"}
-                    {appState === "empty" && "Nenhum Resultado"}
-                  </span>
-                </>
-              )}
             </div>
             
-            {appState !== "initial" && appState !== "decision" && appState !== "results" && !loading && (
+            {appState !== "initial" && appState !== "decision" && !loading && (
               <div className="relative flex-1 max-w-xl group">
                 <input 
                   type="text" 
@@ -1074,7 +1031,7 @@ export default function App() {
               </button>
             )}
             
-            {!loading && (appState === "results" || appState === "inventory_table" || appState === "insights") && (
+            {!loading && appState === "inventory_table" && (
               <button 
                 onClick={() => setShowExportModal(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-100 shadow-sm hover:border-bradesco-red hover:text-bradesco-red transition-all font-bold text-xs uppercase tracking-wider h-10"
