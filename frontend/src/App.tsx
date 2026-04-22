@@ -1,3 +1,16 @@
+/**
+ * Arquivo: frontend/src/App.tsx
+ * Propósito: Componente principal ("A casca" e o "coração" da tela).
+ * É aqui que a mágica visual acontece:
+ * 1. Controla qual "visão" entregar ao usuário (Buscador, Cards, Inventário, Insights ou Mapa de Conexões).
+ * 2. Gerencia os "Estados" - Toda vez que o estado muda (ex: setAppState("insights")),
+ *    o React redesenha a tela instantaneamente usando essas novas informações.
+ * 3. Componentiza Modal de Exportar Tabela, Sidebar de Usuário e Admin de Usuários.
+ * 
+ * Importante: Lógicas pesadas de conta e busca (exclusões e levenshtein) 
+ * devem morar no Backend. O frontend repassa ordens (api.ts) e obedece
+ * os dados JSON que voltam da porta 3000.
+ */
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -658,6 +671,13 @@ export default function App() {
     setExpandedCards(next);
   };
 
+  /**
+   * Realiza a busca quando o usuário clica em Enter ou no ícone da Lupa.
+   * Ele usa as rotas da API que definimos no backend.
+   * Se o usuário digitar "Tudo" (ou a variação base), ele busca os insights completos.
+   * Caso contrário, ele busca com base em palavras exatas.
+   * @param overrideQuery - Se passado, sobrepõe o texto digitado (usado ao clicar nos atalhos)
+   */
   const executeSearch = async (overrideQuery?: string) => {
     const q = overrideQuery ?? query;
     if (!q.trim()) return;
@@ -1092,22 +1112,13 @@ export default function App() {
 
                     <div className="p-2">
                       {currentUser.role === 'admin' && (
-                        <>
-                          <button 
-                            onClick={() => { setShowAdmin(true); setShowUserMenu(false); }}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-2xl transition-all"
-                          >
-                            <Shield className="w-4 h-4" />
-                            Gestão de Usuários
-                          </button>
-                          <button 
-                            onClick={() => { setShowAdmin(true); setShowUserMenu(false); }}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-2xl transition-all"
-                          >
-                            <Settings className="w-4 h-4" />
-                            Configurações
-                          </button>
-                        </>
+                        <button 
+                          onClick={() => { setShowAdmin(true); setShowUserMenu(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-2xl transition-all"
+                        >
+                          <Shield className="w-4 h-4" />
+                          Gestão de Usuários
+                        </button>
                       )}
                       
                       <button 
