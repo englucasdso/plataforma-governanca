@@ -6,6 +6,10 @@
  */
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Define a estrutura (formato) de como cada Artefato se parece dentro do código
 export interface Artifact {
@@ -74,7 +78,7 @@ export function levenshtein(a: string, b: string): number {
  * Retorna os dados prontos para o uso em formato de lista (Array de Artifact)
  */
 export function getInventoryData(): Artifact[] {
-  const dataPath = path.join(process.cwd(), "backend", "data", "inventario.json");
+  const dataPath = path.join(__dirname, "..", "data", "inventario.json");
   const data = fs.readFileSync(dataPath, "utf8");
   return JSON.parse(data);
 }
@@ -149,17 +153,31 @@ export function calculateInsights(results: Artifact[]) {
     interpretacaoAderencia = "A base apresenta baixa aderência — risco de inconsistência.";
   }
 
-  // Resumo Inteligente (Frases sugeridas para ações de gestão)
+  // Resumo Executivo (Tom direto, focado em governança)
   const principalProduto = distribProduto[0]?.name || "N/A";
   const principalSubproduto = distribSubproduto[0]?.name || "N/A";
   
+  let recomendacaoStr = "Manter monitoramento contínuo da base.";
+  let diagnosticoStr = "Status: Adequado.";
+
+  if (nivelRisco === 'alto') {
+    diagnosticoStr = "Status: Crítico. Comprometimento grave na gestão devido a artefatos sem dono ou com formatos legados.";
+  } else if (nivelRisco === 'medio') {
+    diagnosticoStr = "Status: Alerta. Inconsistências parciais de governança e migração incompleta para GA4.";
+  } else if (foraPadraoGA4 > 0) {
+    diagnosticoStr = "Status: Transição para GA4 ainda incompleta.";
+  }
+
   const recomendacoes: string[] = [];
   if (foraPadraoGA4 > 0) recomendacoes.push("Migrar mapas GA3 para o padrão GA4.");
-  if (semResponsavel > 0) recomendacoes.push("Atribuir responsáveis aos artefatos órfãos.");
-  if (desatualizados > 0) recomendacoes.push("Revisar artefatos desatualizados.");
-  if (recomendacoes.length === 0) recomendacoes.push("Manter o monitoramento contínuo.");
+  if (semResponsavel > 0) recomendacoes.push("Atribuir responsáveis aos artefatos sem gestão definda.");
+  if (desatualizados > 0) recomendacoes.push("Revisar artefatos sem atualização recente.");
+  
+  if (foraPadraoGA4 > 0) recomendacaoStr = "Acelerar a migração dos mapas GA3 restantes para o padrão GA4.";
+  else if (semResponsavel > 0) recomendacaoStr = "Definir propriedades de gestão e responsáveis pelos artefatos órfãos.";
+  else if (desatualizados > 0) recomendacaoStr = "Auditar e atualizar artefatos anteriores a 2024.";
 
-  const textoCenario = `O ecossistema é liderado por ${principalProduto} (${principalSubproduto}). ${counts.ga4 > counts.ga3 ? "Migração GA4 avançada" : "Dependência GA3 detectada"}.`;
+  const textoCenario = `Cenário atual: Base de dados com foco no produto ${principalProduto} (${principalSubproduto}). ${diagnosticoStr} Recomendação principal: ${recomendacaoStr}`;
 
   return {
     total,

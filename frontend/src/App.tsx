@@ -257,11 +257,37 @@ const GraphView = ({ data, isEmbedded = false, onClose }: { data: Artifact[], is
                  <div className="pt-8 border-t border-gray-100 grid grid-cols-2 gap-8">
                     <div>
                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">GTM ID</p>
-                       <p className="text-[13px] font-mono font-bold text-bradesco-red bg-red-50 px-3 py-1.5 rounded-xl inline-block border border-red-100">{selectedItem.gtm_id || "-"}</p>
+                       <p className="text-[13px] font-mono font-bold text-[#cc092f] bg-red-50 px-3 py-1.5 rounded-xl inline-block border border-red-100">{selectedItem.gtm_id || "-"}</p>
                     </div>
                     <div>
                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Responsável Técnica</p>
-                       <p className="text-[13px] font-bold text-gray-800">{selectedItem.responsavel || "Equipe Bradesco"}</p>
+                       <p className="text-[13px] font-bold text-gray-800">{selectedItem.responsavel || "N/A"}</p>
+                    </div>
+                    
+                    <div className="col-span-2 pt-6 border-t border-gray-50 grid grid-cols-2 gap-8">
+                      <div>
+                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">GA4 Stream ID</p>
+                         <p className="text-[13px] font-mono font-bold text-gray-800">{selectedItem.propriedade_ga4_stream_id || "-"}</p>
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Firebase</p>
+                         <p className="text-[13px] font-mono font-bold text-gray-800">{selectedItem.firebase || "-"}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="col-span-2 pt-6 border-t border-gray-50 flex flex-col gap-4">
+                      <div>
+                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nº Task</p>
+                         <p className="text-[13px] font-bold text-gray-800">{selectedItem.numero_da_task || "-"}</p>
+                      </div>
+                      {selectedItem.figma_xd && selectedItem.figma_xd !== "-" && (
+                        <div>
+                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Figma / UI</p>
+                           <a href={selectedItem.figma_xd} target="_blank" rel="noreferrer" className="text-[13px] font-black text-purple-600 hover:text-purple-800 hover:underline">
+                             Abrir Protótipo Visual
+                           </a>
+                        </div>
+                      )}
                     </div>
                  </div>
               </div>
@@ -1326,7 +1352,58 @@ export default function App() {
               {/* Advanced UI Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-12">
                 
-                {/* Problemas Detectados - New Section */}
+                {/* Bloco Principal: Resumo Executivo + Pontos de Atenção */}
+                <div className="lg:col-span-3 glass-card p-12 rounded-[40px] border border-gray-100 relative overflow-hidden flex flex-col justify-between">
+                   <div className="flex justify-between items-start mb-10">
+                      <div>
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Visão Geral do Cenário</h4>
+                        <h3 className="text-3xl font-medium tracking-tight text-gray-900 leading-tight">Resumo Executivo</h3>
+                      </div>
+                      <Target className="w-10 h-10 text-gray-300 opacity-20" />
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-10">
+                      <div>
+                         <p className="text-[15px] text-gray-800 leading-relaxed font-sans font-medium">
+                            {insights.resumoInteligente.textoCenario}
+                         </p>
+                      </div>
+                      <div className="bg-gray-50/80 rounded-3xl p-8 border border-gray-100">
+                         <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-6 flex items-center gap-2">
+                           <CheckCircle2 className="w-3 h-3 text-gray-400" /> Ações Recomendadas
+                         </h5>
+                         <ul className="space-y-4">
+                            {insights.resumoInteligente.recomendacoes.map((rec, i) => (
+                              <li key={i} className="flex items-start gap-3 group">
+                                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+                                <span className="text-[13px] font-bold text-gray-700 leading-snug">{rec}</span>
+                              </li>
+                            ))}
+                         </ul>
+                      </div>
+                   </div>
+
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border-t border-gray-50 pt-8 mt-auto">
+                      <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Impacto em</p>
+                        <p className="text-sm font-black text-gray-900 truncate">{insights.resumoInteligente.principalProduto}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Foco no Sub</p>
+                        <p className="text-sm font-black text-gray-900 truncate">{insights.resumoInteligente.principalSubproduto}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Conformidade Global</p>
+                        <p className="text-sm font-black text-green-600">{insights.aderencia.score.toFixed(1)}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Volume Visualizado</p>
+                        <p className="text-sm font-black text-gray-900 truncate">{insights.total} Itens</p>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Pontos de Atenção Section */}
                 <div className="lg:col-span-1 flex flex-col gap-6">
                   <div className={`p-8 rounded-[40px] border relative overflow-hidden flex flex-col h-full bg-white transition-all
                     ${insights.problemas.nivelRisco === 'alto' ? 'border-[#cc092f]/20 bg-[#cc092f]/5' : 
@@ -1339,37 +1416,37 @@ export default function App() {
                        `} />
                     </div>
                     <h4 className="text-sm font-bold text-gray-900 uppercase mb-8 flex items-center gap-2">
-                       Problemas Detectados
+                       Pontos de Atenção
                     </h4>
 
                     <div className="space-y-6">
                       <div className="flex items-center justify-between group">
                         <div className="flex items-center gap-3">
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs font-bold text-gray-600">Sem Responsável</span>
+                          <User className="w-4 h-4 text-gray-500" />
+                          <span className="text-xs font-bold text-gray-700">Sem Responsável</span>
                         </div>
-                        <span className={`text-sm font-black p-1.5 rounded-lg ${insights.problemas.semResponsavel > 0 ? 'text-red-600 bg-red-100' : 'text-green-600 bg-green-100'}`}>{insights.problemas.semResponsavel}</span>
+                        <span className={`text-sm font-black p-1.5 rounded-lg ${insights.problemas.semResponsavel > 0 ? 'text-red-700 bg-red-100' : 'text-green-700 bg-green-100'}`}>{insights.problemas.semResponsavel}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Filter className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs font-bold text-gray-600">Sem Subproduto</span>
+                          <Filter className="w-4 h-4 text-gray-500" />
+                          <span className="text-xs font-bold text-gray-700">Sem Subproduto</span>
                         </div>
-                        <span className={`text-sm font-black p-1.5 rounded-lg ${insights.problemas.semSubproduto > 0 ? 'text-amber-600 bg-amber-100' : 'text-green-600 bg-green-100'}`}>{insights.problemas.semSubproduto}</span>
+                        <span className={`text-sm font-black p-1.5 rounded-lg ${insights.problemas.semSubproduto > 0 ? 'text-amber-700 bg-amber-100' : 'text-green-700 bg-green-100'}`}>{insights.problemas.semSubproduto}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <AlertCircle className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs font-bold text-gray-600">Fora do Padrão GA4</span>
+                          <AlertCircle className="w-4 h-4 text-gray-500" />
+                          <span className="text-xs font-bold text-gray-700">Fora GA4</span>
                         </div>
-                        <span className={`text-sm font-black p-1.5 rounded-lg ${insights.problemas.foraPadraoGA4 > 0 ? 'text-[#cc092f] bg-[#cc092f]/10' : 'text-green-600 bg-green-100'}`}>{insights.problemas.foraPadraoGA4}</span>
+                        <span className={`text-sm font-black p-1.5 rounded-lg ${insights.problemas.foraPadraoGA4 > 0 ? 'text-[#cc092f] bg-[#cc092f]/10' : 'text-green-700 bg-green-100'}`}>{insights.problemas.foraPadraoGA4}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs font-bold text-gray-600">Desatualizados</span>
+                          <Clock className="w-4 h-4 text-gray-500" />
+                          <span className="text-xs font-bold text-gray-700">Desatualizados</span>
                         </div>
-                        <span className={`text-sm font-black p-1.5 rounded-lg ${insights.problemas.desatualizados > 0 ? 'text-[#cc092f] bg-[#cc092f]/10' : 'text-green-600 bg-green-100'}`}>{insights.problemas.desatualizados}</span>
+                        <span className={`text-sm font-black p-1.5 rounded-lg ${insights.problemas.desatualizados > 0 ? 'text-[#cc092f] bg-[#cc092f]/10' : 'text-green-700 bg-green-100'}`}>{insights.problemas.desatualizados}</span>
                       </div>
                     </div>
 
@@ -1387,61 +1464,10 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Resumo Inteligente */}
-                <div className="lg:col-span-3 glass-card p-12 rounded-[40px] border border-gray-100 relative overflow-hidden flex flex-col justify-between">
-                   <div className="flex justify-between items-start mb-10">
-                      <div>
-                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Resumo Inteligente</h4>
-                        <h3 className="text-3xl font-medium tracking-tight text-gray-900 leading-tight">Copiloto de Governança</h3>
-                      </div>
-                      <Sparkles className="w-10 h-10 text-orange-400 opacity-20" />
-                   </div>
-
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-10">
-                      <div>
-                         <p className="text-lg text-gray-600 leading-relaxed font-sans">
-                            {insights.resumoInteligente.textoCenario}
-                         </p>
-                      </div>
-                      <div className="bg-gray-50/80 rounded-3xl p-8 border border-gray-100">
-                         <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 flex items-center gap-2">
-                           <Target className="w-3 h-3" /> Recomendações Estratégicas
-                         </h5>
-                         <ul className="space-y-4">
-                            {insights.resumoInteligente.recomendacoes.map((rec, i) => (
-                              <li key={i} className="flex items-start gap-3 group">
-                                <div className="mt-1 w-1.5 h-1.5 rounded-full bg-[var(--bradesco-red)] shrink-0 group-hover:scale-125 transition-transform" />
-                                <span className="text-[13px] font-bold text-gray-700 leading-snug">{rec}</span>
-                              </li>
-                            ))}
-                         </ul>
-                      </div>
-                   </div>
-
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                      <div className="p-4 rounded-2xl bg-white border border-gray-50">
-                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Impacto em</p>
-                        <p className="text-xs font-black text-gray-900 truncate">{insights.resumoInteligente.principalProduto}</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-white border border-gray-50">
-                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Foco no Sub</p>
-                        <p className="text-xs font-black text-gray-900 truncate">{insights.resumoInteligente.principalSubproduto}</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-white border border-gray-50">
-                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Taxa de Aderência</p>
-                        <p className="text-xs font-black text-green-600">{insights.aderencia.score.toFixed(1)}%</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-white border border-gray-50">
-                        <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Status Base</p>
-                        <p className="text-xs font-black text-gray-900 truncate">{insights.total} Itens</p>
-                      </div>
-                   </div>
-                </div>
-
                 {/* Produtos & Subprodutos Rows */}
                 <div className="lg:col-span-2 glass-card p-10 rounded-[40px] border border-gray-100">
                   <h4 className="text-sm font-bold text-gray-400 uppercase mb-10 flex justify-between items-center">
-                    <span>Produtos</span>
+                    <span>Distribuição por Produto</span>
                     <span className="text-[10px] font-black text-gray-300">Volume & %</span>
                   </h4>
                   <div className="space-y-8">
@@ -1470,7 +1496,7 @@ export default function App() {
                 <div className="lg:col-span-2 space-y-8">
                    {/* Aderência ao Padrão - Revamped */}
                    <div className="glass-card p-10 rounded-[40px] border border-gray-100">
-                      <h4 className="text-sm font-bold text-gray-400 uppercase mb-8">Aderência ao Padrão</h4>
+                      <h4 className="text-sm font-bold text-gray-400 uppercase mb-8">Conformidade ao Padrão</h4>
                       <div className="flex items-center gap-10">
                         <div className="relative w-32 h-32 flex items-center justify-center">
                            <svg className="w-full h-full -rotate-90">
@@ -1503,7 +1529,7 @@ export default function App() {
 
                    {/* Subprodutos */}
                    <div className="glass-card p-10 rounded-[40px] border border-gray-100">
-                      <h4 className="text-sm font-bold text-gray-400 uppercase mb-8">Subprodutos</h4>
+                      <h4 className="text-sm font-bold text-gray-400 uppercase mb-8">Detalhamento por Subproduto</h4>
                       <div className="grid grid-cols-2 gap-4">
                          {insights.distribSubproduto.slice(0, 4).map((s, idx) => (
                            <div key={idx} className="p-6 rounded-3xl bg-gray-50/50 border border-gray-100/50 hover:border-gray-200 transition-all">

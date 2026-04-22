@@ -86,6 +86,10 @@ body {
   font-weight: 700;
 }
 
+.bg-bradesco-gradient {
+  background: linear-gradient(90deg, #7d046d 0%, #cc092f 100%) !important;
+}
+
 /* CARDS */
 .red-badge {
   color: #DB0026;
