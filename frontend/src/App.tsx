@@ -60,6 +60,102 @@ const INITIAL_USERS: UserType[] = [
   }
 ];
 
+const SyncManager = ({ onFinish, onCancel }: { onFinish: () => void, onCancel: () => void }) => {
+  const [stepInfo, setStepInfo] = useState({ step: 'INICIANDO', description: 'Preparando motor de sincronização...' });
+  const [history, setHistory] = useState<{ step: string, desc: string }[]>([]);
+
+  useEffect(() => {
+    const eventSource = new EventSource('/api/sync-stream');
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setStepInfo(data);
+        setHistory(prev => [...prev.slice(-3), { step: data.step, desc: data.description }]);
+        
+        if (data.step === 'CONCLUIDA' || data.step === 'ERRO') {
+          eventSource.close();
+          if (data.step === 'CONCLUIDA') {
+            setTimeout(() => onFinish(), 2000);
+          }
+        }
+      } catch (err) {}
+    };
+    eventSource.onerror = () => {
+      eventSource.close();
+      setStepInfo({ step: 'ERRO', description: 'Falha de comunicação com o servidor HTTPS.' });
+    };
+
+    return () => eventSource.close();
+  }, [onFinish]);
+
+  const isError = stepInfo.step === 'ERRO';
+  const isFinished = stepInfo.step === 'CONCLUIDA';
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="glass-card max-w-xl w-full p-12 rounded-[50px] shadow-2xl relative overflow-hidden border border-gray-100"
+      >
+        <div className="absolute top-0 left-0 w-full h-2 bg-gray-100">
+          <motion.div 
+            className={`h-full ${isError ? 'bg-red-500' : isFinished ? 'bg-green-500' : 'bg-bradesco-gradient'}`}
+            animate={{ width: isFinished || isError ? '100%' : '100%' }}
+            initial={{ width: '0%' }}
+            transition={{ duration: 15, ease: "linear" }}
+          />
+        </div>
+
+        <div className="flex flex-col items-center text-center space-y-6">
+          <div className="relative">
+            <div className={`w-24 h-24 rounded-[32px] flex items-center justify-center shadow-xl ${isError ? 'bg-red-50 text-red-500' : isFinished ? 'bg-green-50 text-green-500' : 'bg-bradesco-gradient text-white animate-pulse'}`}>
+              {isError ? <AlertTriangle className="w-10 h-10" /> : isFinished ? <CheckCircle2 className="w-10 h-10" /> : <Network className="w-10 h-10 animate-spin-slow" />}
+            </div>
+            {!isFinished && !isError && (
+              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
+                <div className="w-4 h-4 rounded-full border-2 border-bradesco-red border-t-transparent animate-spin" />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-2">
+              {isError ? 'Falha na Sincronização' : isFinished ? 'Sincronização Concluída' : 'Sincronização em Andamento'}
+            </h2>
+            <p className={`text-md font-bold uppercase tracking-widest ${isError ? 'text-red-500' : 'text-bradesco-red'}`}>
+              {stepInfo.step}
+            </p>
+          </div>
+
+          <div className="w-full bg-gray-50 rounded-[32px] p-6 text-left border border-gray-100 space-y-3 mt-4">
+            {history.map((h, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`text-sm ${i === history.length - 1 ? 'font-bold text-gray-800' : 'text-gray-400'}`}
+              >
+                <span className="opacity-50 mr-2">›</span>
+                {h.desc}
+              </motion.div>
+            ))}
+          </div>
+
+          {(isError || isFinished) && (
+            <button 
+              onClick={isFinished ? onFinish : onCancel}
+              className={`mt-4 px-8 py-3 rounded-2xl font-bold text-white transition-all hover:scale-105 shadow-xl ${isError ? 'bg-red-500 shadow-red-200' : 'bg-gray-900 shadow-gray-200'}`}
+            >
+              {isFinished ? 'Voltar para a Plataforma' : 'Cancelar'}
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const GraphView = ({ data, isEmbedded = false, onClose }: { data: Artifact[], isEmbedded?: boolean, onClose?: () => void }) => {
   const [collapsedProducts, setCollapsedProducts] = useState<Set<string>>(new Set());
   const [collapsedSubproducts, setCollapsedSubproducts] = useState<Set<string>>(new Set());
@@ -577,7 +673,7 @@ export default function App() {
   const [results, setResults] = useState<Artifact[]>([]);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
-  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph">("initial");
+  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "syncing">("initial");
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [tableFilter, setTableFilter] = useState("");
@@ -586,6 +682,7 @@ export default function App() {
   const [expandedInventoryRows, setExpandedInventoryRows] = useState<Set<string>>(new Set());
   const [insightFilters, setInsightFilters] = useState({ ga: 'all', produto: 'all', subproduto: 'all' });
   const [inventoryViewMode, setInventoryViewMode] = useState<'table' | 'panel'>('table');
+  const [lastSyncDate, setLastSyncDate] = useState<string | null>(null);
   
   // Advanced Inventory State
   const [inventoryFilters, setInventoryFilters] = useState({
@@ -702,6 +799,21 @@ export default function App() {
     const q = overrideQuery ?? query;
     if (!q.trim()) return;
 
+    const normalizedQ = normalizar(q);
+
+    // Intent Matcher for Sincronização
+    // A platform premium feature requested by product owner
+    const syncIntents = [
+      "sincronizar confluence", "sync confluence", "atualizar confluence", 
+      "atualizar inventario", "sincronizar inventario", "atualizar base", "indexar artefatos"
+    ];
+    const isSyncIntent = syncIntents.some(intent => normalizedQ.includes(normalizar(intent)));
+
+    if (isSyncIntent) {
+      setAppState("syncing");
+      return;
+    }
+
     setLoading(true);
     setAppState("results");
     setResults([]);
@@ -712,7 +824,6 @@ export default function App() {
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     try {
-      const normalizedQ = normalizar(q);
       const isInventory = normalizedQ.includes("inventario") || 
                         normalizedQ.includes("base completa") || 
                         normalizedQ.includes("lista") || 
@@ -725,6 +836,7 @@ export default function App() {
 
       setResults(data.resultados);
       setInsights(data.insights);
+      if (data.lastSync) setLastSyncDate(data.lastSync);
 
       if (isInventory) {
         setAppState("inventory_table");
@@ -1031,17 +1143,10 @@ export default function App() {
                 Hub de Artefatos
               </h1>
             </div>
-            
-            {appState !== "initial" && appState !== "decision" && !loading && (
-              <div className="relative flex-1 max-w-xl group">
-                <input 
-                  type="text" 
-                  className="w-full px-6 py-2.5 bg-gray-50 border border-transparent rounded-full text-sm focus:outline-none focus:bg-white focus:border-bradesco-red focus:ring-4 focus:ring-bradesco-red/10 transition-all font-medium"
-                  placeholder="Pesquisar novamente..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && executeSearch()}
-                />
+            {lastSyncDate && appState !== "initial" && appState !== "decision" && appState !== "syncing" && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full">
+                <Clock className="w-3 h-3 text-gray-400" />
+                <span className="text-[10px] font-bold text-gray-500 tracking-wider">ÚLTIMA SINCRONIZAÇÃO: {formatDataBR(lastSyncDate)}</span>
               </div>
             )}
           </div>
@@ -1209,6 +1314,23 @@ export default function App() {
         <section className={`content ${appState === "initial" ? "hidden" : ""}`}>
           <NavigationModes />
           
+          {/* Syncing Area */}
+          <AnimatePresence>
+            {appState === "syncing" && (
+              <motion.section 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="py-12"
+              >
+                <SyncManager 
+                  onCancel={() => setAppState("initial")}
+                  onFinish={() => executeSearch("inventario")} 
+                />
+              </motion.section>
+            )}
+          </AnimatePresence>
+
           {/* Decision / Loading Area */}
           <section className={`decision ${appState === "decision" || loading || appState === "empty" ? "flex flex-col items-center justify-center text-center py-24" : "hidden"}`}>
             <div className="mb-8 scale-150 transform transition-transform duration-500">

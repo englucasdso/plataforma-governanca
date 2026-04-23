@@ -77,10 +77,15 @@ export function levenshtein(a: string, b: string): number {
  * Lê o arquivo físico inventario.json onde ficam os dados salvos.
  * Retorna os dados prontos para o uso em formato de lista (Array de Artifact)
  */
-export function getInventoryData(): Artifact[] {
+export function getInventoryData(): { data: Artifact[], lastSync: string } {
   const dataPath = path.join(__dirname, "..", "data", "inventario.json");
   const data = fs.readFileSync(dataPath, "utf8");
-  return JSON.parse(data);
+  let lastSync = '';
+  try {
+    const stats = fs.statSync(dataPath);
+    lastSync = stats.mtime.toISOString();
+  } catch (e) { }
+  return { data: JSON.parse(data), lastSync };
 }
 
 /**
@@ -221,7 +226,8 @@ export function searchArtifacts(queryRaw: string): any {
   const query = normalize(queryRaw);
   if (!query) return { total: 0, resultados: [], insights: {} };
 
-  const inventory = getInventoryData();
+  const inventoryResult = getInventoryData();
+  const inventory = inventoryResult.data;
   
   // Identifica se a intenção do usuário envolve filtrar "fora" alguma coisa
   const isNegation = query.includes("nao seguem") || query.includes("nao e") || query.includes("sem") || query.includes("fora de");
@@ -277,6 +283,7 @@ export function searchArtifacts(queryRaw: string): any {
     insights: {
       ...calculateInsights(results),
       searchTerm: queryRaw
-    }
+    },
+    lastSync: inventoryResult.lastSync
   };
 }

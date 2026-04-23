@@ -66,4 +66,5 @@ export interface SearchResponse {
   total: number;
   resultados: Artifact[];
   insights: Insights;
+  lastSync?: string;
 }
