@@ -6,9 +6,6 @@ export default {
   ],
   theme: {
     extend: {
-      animation: {
-        'spin-slow': 'spin 3s linear infinite',
-      },
       fontFamily: {
         sans: ['"Canva Sans"', '"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },

@@ -6,7 +6,7 @@
  */
 import { Router } from "express";
 import { getInventoryData, calculateInsights, searchArtifacts } from "../services/inventory.service.js";
-import { runCollection, runPremiumSync } from "../confluenceClient.js";
+import { runCollection } from "../confluenceClient.js";
 
 const router = Router();
 
@@ -16,13 +16,11 @@ const router = Router();
  */
 router.get("/inventario", (req, res) => {
   try {
-    const inventoryResult = getInventoryData();
-    const inventory = inventoryResult.data;
+    const inventory = getInventoryData();
     res.json({
       total: inventory.length,
       resultados: inventory,
-      insights: calculateInsights(inventory),
-      lastSync: inventoryResult.lastSync
+      insights: calculateInsights(inventory) // Os insights são gerados em tempo real com base na base total
     });
   } catch (error) {
     res.status(500).json({ error: "Erro ao carregar inventário" });
@@ -35,11 +33,11 @@ router.get("/inventario", (req, res) => {
  * lendo lábios diretamente do sistema Confluence.
  */
 router.post("/collect", async (req, res) => {
-  const { rootId } = req.body;
+  const { rootId, maxRows } = req.body;
   if (!rootId) return res.status(400).json({ error: "ID root da página é obrigatório" });
   
   try {
-    const data = await runCollection(rootId);
+    const data = await runCollection(rootId, maxRows || null);
     res.json({ success: true, count: data.length });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -58,32 +56,6 @@ router.get("/search", (req, res) => {
     res.json(results);
   } catch (error) {
     res.status(500).json({ error: "Erro ao processar busca" });
-  }
-});
-
-/**
- * ROTA: GET /api/sync-stream
- * Conexão persistente (SSE) para stream de log da sincronização com Confluence
- */
-router.get("/sync-stream", async (req, res) => {
-  // SSE Headers
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  const cbProgress = (step, description) => {
-    res.write(`data: ${JSON.stringify({ step, description })}\n\n`);
-  };
-
-  try {
-    const result = await runPremiumSync(cbProgress, {
-      maxRows: req.query.maxRows ? parseInt(req.query.maxRows as string, 10) : null
-    });
-    res.write(`data: ${JSON.stringify({ step: 'CONCLUIDA', description: 'Base sincronizada com sucesso.', result })}\n\n`);
-  } catch (error: any) {
-    res.write(`data: ${JSON.stringify({ step: 'ERRO', description: error.message || 'Falha na Sincronização' })}\n\n`);
-  } finally {
-    res.end();
   }
 });
 

@@ -1,26 +1,47 @@
+/**
+ * Confluence Data Collector Client
+ * 
+ * Este módulo é responsável por extrair dados do Confluence via API REST
+ * implementando parse refinado usando cheerio e respeitando o Node 18.17.
+ */
 import fs from 'fs/promises';
 import path from 'path';
-import { JSDOM } from 'jsdom';
-import { fileURLToPath } from 'url';
+import * as cheerio from 'cheerio';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const CONFLUENCE_BASE_URL = process.env.CONFLUENCE_URL || 'https://confluence.bradesco.com.br:8443';
-const DEFAULT_PARENT_ID = '1542391004';
+const CONFLUENCE_BASE_URL = 'https://confluence.bradesco.com.br:8443';
+const API_PATH = '/rest/api/content';
 
 const getHeaders = () => {
   const headers = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   };
-  if (process.env.CONFLUENCE_TOKEN) {
+  if (typeof process !== 'undefined' && process.env.CONFLUENCE_TOKEN) {
     headers['Authorization'] = `Bearer ${process.env.CONFLUENCE_TOKEN}`;
   }
   return headers;
 };
 
-// --- Sync Utils baseadas na logica validada pelo usuario ---
+// --- Funções Auxiliares de Fetch ---
+async function fetchConfluence(endpoint) {
+  const url = endpoint.startsWith('http') ? endpoint : `${CONFLUENCE_BASE_URL}${endpoint}`;
+  const response = await fetch(url, { headers: getHeaders(), credentials: 'omit' });
+  if (!response.ok) {
+    throw new Error(`Erro na API Confluence: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
+}
+
+async function fetchConfluenceText(endpoint) {
+  const url = endpoint.startsWith('http') ? endpoint : `${CONFLUENCE_BASE_URL}${endpoint}`;
+  const response = await fetch(url, { headers: getHeaders(), credentials: 'omit' });
+  if (!response.ok) {
+    throw new Error(`Erro na API Confluence (Text): ${response.status} ${response.statusText}`);
+  }
+  return response.text();
+}
+
+// --- Funções Auxiliares (Baseadas na referência técnica do cliente) ---
 const MAX_CARACTERES_PRODUTO = 20;
 const MAX_CARACTERES_SUBPRODUTO = 15;
 
@@ -38,13 +59,16 @@ function normalizarChave(txt) {
     .replace(/\s+/g, '_');
 }
 
-function extrairValorDeCelula(cell) {
-  if (!cell) return '';
-  const link = cell.querySelector('a[href]');
-  if (link && link.href) return link.href.trim();
-  const panelContent = cell.querySelector('.panelContent');
-  if (panelContent) return limpar(panelContent.textContent);
-  return limpar(cell.textContent);
+function extrairValorDeCelula($cell) {
+  if (!$cell) return '';
+
+  const link = $cell.find('a[href]').first();
+  if (link.length > 0 && link.attr('href')) return link.attr('href').trim();
+
+  const panelContent = $cell.find('.panelContent');
+  if (panelContent.length > 0) return limpar(panelContent.text());
+
+  return limpar($cell.text());
 }
 
 function ehMapaValidoPorTitulo(title) {
@@ -69,6 +93,7 @@ function extrairProdutoSubprodutoDaTrilha(trilhaAtual, nivelAtual) {
   const ancestrais = trilhaAtual.filter(x => Number(x.nivel) < Number(nivelAtual));
   const ancestralProduto = ancestrais.find(x => Number(x.nivel) === 1);
   const ancestralSubproduto = ancestrais.find(x => Number(x.nivel) === 2);
+
   return {
     produto: validarProduto(ancestralProduto ? ancestralProduto.titulo : ''),
     subproduto: validarSubproduto(ancestralSubproduto ? ancestralSubproduto.titulo : '')
@@ -81,48 +106,69 @@ async function buscarFilhasDiretas(pageId, pageSize = 100) {
   let keepGoing = true;
 
   while (keepGoing) {
-    const url = `${CONFLUENCE_BASE_URL}/rest/api/content/${pageId}/child/page?limit=${pageSize}&start=${start}&expand=version,history.lastUpdated`;
-    const res = await fetch(url, { headers: getHeaders() });
-    if(!res.ok) throw new Error("Erro buscarFilhasDiretas");
-    const data = await res.json();
+    const url = `${API_PATH}/${pageId}/child/page?limit=${pageSize}&start=${start}&expand=version,history.lastUpdated`;
+    const data = await fetchConfluence(url);
     const batch = data.results || [];
-
     pages = pages.concat(batch);
-    if (batch.length < pageSize) keepGoing = false;
-    else start += pageSize;
+
+    if (batch.length < pageSize) {
+      keepGoing = false;
+    } else {
+      start += pageSize;
+    }
   }
   return pages;
 }
 
-function extrairCamposCabecalhoDoDoc(doc) {
-  const tabela0 = doc.querySelectorAll('table')[0];
-  if (!tabela0) return {};
-  const linhas = Array.from(tabela0.querySelectorAll('tr'));
+function extrairCamposCabecalhoDoDoc($doc) {
+  const tabela0 = $doc('table').first();
+  if (tabela0.length === 0) return {};
+
+  const linhas = tabela0.find('tr').toArray();
   const campos = {};
+
   for (const linha of linhas) {
-    const cells = Array.from(linha.querySelectorAll('th, td'));
+    const $linha = cheerio.load(linha); // Load html of the row
+    const cells = $linha('th, td').toArray();
     if (cells.length < 2) continue;
-    const label = limpar(cells[0].textContent);
-    const valor = extrairValorDeCelula(cells[1]);
+    
+    // We can also just use the doc instance instead of reloading:
+    const $cell0 = $doc(cells[0]);
+    const $cell1 = $doc(cells[1]);
+
+    const label = limpar($cell0.text());
+    const valor = extrairValorDeCelula($cell1);
+
     if (!label) continue;
     campos[normalizarChave(label)] = valor;
   }
   return campos;
 }
 
-function classificarTipoMapaDoDoc(doc) {
-  const tabelas = Array.from(doc.querySelectorAll('table')).slice(0, 40);
+function classificarTipoMapaDoDoc($doc) {
+  const tabelas = $doc('table').toArray().slice(0, 40);
   const regexDataLayer = /datalayer\s*\.\s*push\s*\(\s*\{/i;
+
   let ehMapa = false;
   let temGA3 = false;
+
   for (const tabela of tabelas) {
-    const texto = String(tabela.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
-    if (regexDataLayer.test(texto)) ehMapa = true;
+    const defaultText = $doc(tabela).text() || '';
+    const texto = String(defaultText).replace(/\s+/g, ' ').trim().toLowerCase();
+
+    if (regexDataLayer.test(texto)) {
+      ehMapa = true;
+    }
+
     const temEventCategory = texto.includes('event_category');
     const temEventAction = texto.includes('event_action');
     const temEventLabel = texto.includes('event_label');
-    if (temEventCategory && temEventAction && temEventLabel) temGA3 = true;
+
+    if (temEventCategory && temEventAction && temEventLabel) {
+      temGA3 = true;
+    }
   }
+
   if (!ehMapa) return '';
   if (temGA3) return 'GA3';
   return 'GA4';
@@ -130,70 +176,66 @@ function classificarTipoMapaDoDoc(doc) {
 
 async function extrairDadosPagina(pageId) {
   try {
-    const url = `${CONFLUENCE_BASE_URL}/pages/viewpage.action?pageId=${pageId}`;
-    const res = await fetch(url, { headers: getHeaders() });
-    if(!res.ok) throw new Error("Erro viewpage");
-    const html = await res.text();
-    const dom = new JSDOM(html);
-    const doc = dom.window.document;
-    const cabecalho = extrairCamposCabecalhoDoDoc(doc);
-    const tipo_mapa = classificarTipoMapaDoDoc(doc);
+    const endpoint = `/pages/viewpage.action?pageId=${pageId}`;
+    const html = await fetchConfluenceText(endpoint);
+    const $doc = cheerio.load(html);
+
+    const cabecalho = extrairCamposCabecalhoDoDoc($doc);
+    const tipo_mapa = classificarTipoMapaDoDoc($doc);
     return { cabecalho, tipo_mapa };
   } catch (e) {
     return { cabecalho: {}, tipo_mapa: '' };
   }
 }
 
-export async function runPremiumSync(onProgress, options = {}) {
-  const parentId = options.parentId || DEFAULT_PARENT_ID;
-  const maxRows = options.maxRows || null; 
-  const pageSize = options.pageSize || 100;
-  
+async function buildInventory(rootPageId, maxReqRows = null) {
   const allRows = [];
-  
-  onProgress('CONECTANDO', 'Autenticando e estabelecendo conexão segura com Confluence...');
-  await new Promise(r => setTimeout(r, 1000));
-
-  onProgress('MAPEANDO', 'Buscando árvore de artefatos...');
 
   async function percorrerArvore(pageId, nivel, parentTitulo, trilha) {
-    if (maxRows !== null && allRows.length >= maxRows) return;
+    if (maxReqRows !== null && allRows.length >= maxReqRows) return;
 
-    const children = await buscarFilhasDiretas(pageId, pageSize);
+    const children = await buscarFilhasDiretas(pageId);
 
     for (const page of children) {
-      if (maxRows !== null && allRows.length >= maxRows) break;
-      const netas = await buscarFilhasDiretas(page.id, pageSize);
+      if (maxReqRows !== null && allRows.length >= maxReqRows) break;
+
+      const netas = await buscarFilhasDiretas(page.id, 100);
       const ehFolha = netas.length === 0;
-      
-      const trilhaAtual = [...trilha, { id: page.id, titulo: limpar(page.title), nivel }];
-      
+
+      const trilhaAtual = [
+        ...trilha,
+        { id: page.id, titulo: limpar(page.title), nivel: nivel }
+      ];
+
       let cabecalho = {};
       let tipo_mapa = '';
 
       if (ehFolha) {
-        onProgress('ORGANIZANDO', `Analisando metadados: ${page.title}`);
         const dadosPagina = await extrairDadosPagina(page.id);
         tipo_mapa = dadosPagina.tipo_mapa;
-        if (ehMapaValidoPorTitulo(page.title)) cabecalho = dadosPagina.cabecalho;
+
+        if (ehMapaValidoPorTitulo(page.title)) {
+          cabecalho = dadosPagina.cabecalho;
+        }
       }
 
       const estrutura = extrairProdutoSubprodutoDaTrilha(trilhaAtual, nivel);
+
       const row = {
         id: page.id || '',
         titulo: page.title || '',
         link: `${CONFLUENCE_BASE_URL}/pages/viewpage.action?pageId=${page.id}`,
-        ultima_atualizacao: (page.history?.lastUpdated?.when) || '',
-        responsavel: (page.version?.by?.displayName) || '',
-        versao: (page.version?.number) || '',
+        ultima_atualizacao: (page.history && page.history.lastUpdated && page.history.lastUpdated.when) || '',
+        responsavel: (page.version && page.version.by && page.version.by.displayName) || '',
+        versao: (page.version && page.version.number) || '',
         nivel: nivel,
         pai: parentTitulo || '',
         produto: estrutura.produto,
         subproduto: estrutura.subproduto,
         produto_servico: cabecalho.produto_servico || '',
-        numero_da_task: cabecalho.n_da_task || '',
-        figma_xd: cabecalho.figma_xd || '',
-        propriedade_ga4_stream_id: cabecalho.propriedade_ga4_stream_id || '',
+        numero_da_task: cabecalho.n_da_task || cabecalho.numero_da_task || '',
+        figma_xd: cabecalho.figma_xd || cabecalho.figma || '',
+        propriedade_ga4_stream_id: cabecalho.propriedade_ga4_stream_id || cabecalho.ga4_id || '',
         firebase: cabecalho.firebase || '',
         gtm_id: cabecalho.gtm_id || '',
         dominio_exclusivo_web: cabecalho.dominio_exclusivo_web || cabecalho.dominio_exclusivo_web_ || '',
@@ -202,35 +244,34 @@ export async function runPremiumSync(onProgress, options = {}) {
 
       allRows.push(row);
 
+      if (allRows.length % 20 === 0) {
+        console.log('Processados:', allRows.length);
+      }
+
       if (netas.length > 0) {
         await percorrerArvore(page.id, nivel + 1, page.title, trilhaAtual);
       }
     }
   }
 
-  try {
-    await percorrerArvore(parentId, 1, 'Mapas de Métricas - Salla', []);
-    
-    onProgress('ATUALIZANDO', `Sobrescrevendo base local com ${allRows.length} artefatos...`);
-    const filePath = path.resolve(__dirname, 'data/inventario.json');
-    
-    // Simulate updating delay
-    await new Promise(r => setTimeout(r, 800));
-    
-    await fs.writeFile(filePath, JSON.stringify(allRows, null, 2), 'utf8');
-    
-    onProgress('CONCLUIDA', 'Base sincronizada com sucesso.');
-    return { success: true, count: allRows.length, timestamp: new Date().toISOString() };
-  } catch (error) {
-    console.error("Erro na Sincronização:", error);
-    onProgress('ERRO', 'Falha ao sincronizar com servidor Confluence.');
-    throw error;
-  }
+  await percorrerArvore(rootPageId, 1, 'Mapas de Métricas - Salla', []);
+  return allRows;
 }
 
-// Manter exportacoes antigas para não quebrar outras rotas que possam usa-lo.
-export { getHeaders };
-export async function runCollection(rootId) {
-  // Legacy adapter using premium sync
-  return await runPremiumSync(() => {}, { parentId: rootId });
+async function exportToJSON(data) {
+  const filePath = path.resolve('backend/data/inventario.json');
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+  console.log(`Inventário atualizado no backend com ${data.length} artefatos.`);
 }
+
+async function runCollection(rootPageId, maxRows) {
+  console.time('Coleta Confluence V2');
+  const inventory = await buildInventory(rootPageId, maxRows);
+  await exportToJSON(inventory);
+  console.timeEnd('Coleta Confluence V2');
+  return inventory;
+}
+
+export {
+  runCollection
+};

@@ -37,7 +37,10 @@ import {
   Plus,
   Settings,
   Landmark,
-  LayoutList
+  LayoutList,
+  RefreshCw,
+  Check,
+  Loader2
 } from "lucide-react";
 import { fetchInventory, searchContent } from "@/services/api";
 import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "@/types";
@@ -59,102 +62,6 @@ const INITIAL_USERS: UserType[] = [
     createdAt: new Date().toISOString()
   }
 ];
-
-const SyncManager = ({ onFinish, onCancel }: { onFinish: () => void, onCancel: () => void }) => {
-  const [stepInfo, setStepInfo] = useState({ step: 'INICIANDO', description: 'Preparando motor de sincronização...' });
-  const [history, setHistory] = useState<{ step: string, desc: string }[]>([]);
-
-  useEffect(() => {
-    const eventSource = new EventSource('/api/sync-stream');
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setStepInfo(data);
-        setHistory(prev => [...prev.slice(-3), { step: data.step, desc: data.description }]);
-        
-        if (data.step === 'CONCLUIDA' || data.step === 'ERRO') {
-          eventSource.close();
-          if (data.step === 'CONCLUIDA') {
-            setTimeout(() => onFinish(), 2000);
-          }
-        }
-      } catch (err) {}
-    };
-    eventSource.onerror = () => {
-      eventSource.close();
-      setStepInfo({ step: 'ERRO', description: 'Falha de comunicação com o servidor HTTPS.' });
-    };
-
-    return () => eventSource.close();
-  }, [onFinish]);
-
-  const isError = stepInfo.step === 'ERRO';
-  const isFinished = stepInfo.step === 'CONCLUIDA';
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="glass-card max-w-xl w-full p-12 rounded-[50px] shadow-2xl relative overflow-hidden border border-gray-100"
-      >
-        <div className="absolute top-0 left-0 w-full h-2 bg-gray-100">
-          <motion.div 
-            className={`h-full ${isError ? 'bg-red-500' : isFinished ? 'bg-green-500' : 'bg-bradesco-gradient'}`}
-            animate={{ width: isFinished || isError ? '100%' : '100%' }}
-            initial={{ width: '0%' }}
-            transition={{ duration: 15, ease: "linear" }}
-          />
-        </div>
-
-        <div className="flex flex-col items-center text-center space-y-6">
-          <div className="relative">
-            <div className={`w-24 h-24 rounded-[32px] flex items-center justify-center shadow-xl ${isError ? 'bg-red-50 text-red-500' : isFinished ? 'bg-green-50 text-green-500' : 'bg-bradesco-gradient text-white animate-pulse'}`}>
-              {isError ? <AlertTriangle className="w-10 h-10" /> : isFinished ? <CheckCircle2 className="w-10 h-10" /> : <Network className="w-10 h-10 animate-spin-slow" />}
-            </div>
-            {!isFinished && !isError && (
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-                <div className="w-4 h-4 rounded-full border-2 border-bradesco-red border-t-transparent animate-spin" />
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-2">
-              {isError ? 'Falha na Sincronização' : isFinished ? 'Sincronização Concluída' : 'Sincronização em Andamento'}
-            </h2>
-            <p className={`text-md font-bold uppercase tracking-widest ${isError ? 'text-red-500' : 'text-bradesco-red'}`}>
-              {stepInfo.step}
-            </p>
-          </div>
-
-          <div className="w-full bg-gray-50 rounded-[32px] p-6 text-left border border-gray-100 space-y-3 mt-4">
-            {history.map((h, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className={`text-sm ${i === history.length - 1 ? 'font-bold text-gray-800' : 'text-gray-400'}`}
-              >
-                <span className="opacity-50 mr-2">›</span>
-                {h.desc}
-              </motion.div>
-            ))}
-          </div>
-
-          {(isError || isFinished) && (
-            <button 
-              onClick={isFinished ? onFinish : onCancel}
-              className={`mt-4 px-8 py-3 rounded-2xl font-bold text-white transition-all hover:scale-105 shadow-xl ${isError ? 'bg-red-500 shadow-red-200' : 'bg-gray-900 shadow-gray-200'}`}
-            >
-              {isFinished ? 'Voltar para a Plataforma' : 'Cancelar'}
-            </button>
-          )}
-        </div>
-      </motion.div>
-    </div>
-  );
-};
 
 const GraphView = ({ data, isEmbedded = false, onClose }: { data: Artifact[], isEmbedded?: boolean, onClose?: () => void }) => {
   const [collapsedProducts, setCollapsedProducts] = useState<Set<string>>(new Set());
@@ -587,6 +494,7 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
 const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: UserType[] }) => {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const lastSync = localStorage.getItem('last_sync');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -617,7 +525,14 @@ const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: User
             <Landmark className="w-8 h-8" />
           </div>
           <h1 className="text-[26px] font-black text-gray-900 mb-1 tracking-tight">Hub de Artefatos</h1>
-          <p className="text-gray-400 text-sm font-medium">Visualização e análise do ecossistema de mensuração</p>
+          <div className="flex items-center gap-3">
+            <p className="text-gray-400 text-sm font-medium">Visualização e análise do ecossistema de mensuração</p>
+            {lastSync && (
+              <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full border border-gray-200 shadow-sm flex items-center gap-1.5">
+                <Clock className="w-3 h-3" /> Atualizado: {lastSync}
+              </span>
+            )}
+          </div>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
@@ -663,6 +578,123 @@ const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: User
   );
 };
 
+const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel: () => void }) => {
+  const [step, setStep] = useState(0);
+  const [status, setStatus] = useState<"idle" | "running" | "success" | "error">("running");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const steps = [
+    "Conectando ao ambiente de documentação...",
+    "Mapeando estrutura de produtos...",
+    "Organizando artefatos e métricas...",
+    "Atualizando base de conhecimento local..."
+  ];
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const runSync = async () => {
+      try {
+        await new Promise(r => setTimeout(r, 1000));
+        if (isCancelled) return;
+        setStep(1);
+
+        const res = await fetch("/api/collect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rootId: "1542391004", maxRows: null })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || "Falha na sincronização");
+
+        if (isCancelled) return;
+        setStep(2);
+        await new Promise(r => setTimeout(r, 800));
+        
+        if (isCancelled) return;
+        setStep(3);
+        await new Promise(r => setTimeout(r, 800));
+        
+        if (isCancelled) return;
+        setStep(4);
+        setStatus("success");
+        await new Promise(r => setTimeout(r, 1500));
+        if (!isCancelled) onComplete();
+      } catch (err: any) {
+        if (isCancelled) return;
+        setStatus("error");
+        setErrorMsg(err.message || "Erro desconhecido");
+      }
+    };
+
+    runSync();
+    return () => { isCancelled = true; };
+  }, []);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-md"
+    >
+      <div className="bg-white rounded-[40px] p-12 max-w-2xl w-full shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-bradesco-gradient" />
+        
+        <div className="flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-8 relative">
+            {status === "running" && <Loader2 className="w-10 h-10 text-bradesco-red animate-spin" />}
+            {status === "success" && <CheckCircle2 className="w-10 h-10 text-green-500" />}
+            {status === "error" && <AlertTriangle className="w-10 h-10 text-red-500" />}
+            
+            {status === "running" && (
+              <span className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-sm border border-gray-100">
+                <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />
+              </span>
+            )}
+          </div>
+
+          <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+            Verificando Base de Conhecimento
+          </h2>
+          <p className="text-gray-500 font-medium mb-10 max-w-md">
+            {status === "error" ? "Não foi possível concluir a verificação." : "Este processo garante as definições mais recentes. Não feche a janela."}
+          </p>
+
+          <div className="w-full space-y-4 mb-10 text-left">
+            {steps.map((text, idx) => (
+              <div key={idx} className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${step === idx ? 'bg-red-50 border border-red-100' : step > idx ? 'bg-gray-50' : 'opacity-40'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${step > idx ? 'bg-green-100 text-green-600' : step === idx && status === 'error' ? 'bg-red-100 text-red-600' : step === idx ? 'bg-white shadow-sm text-bradesco-red' : 'bg-gray-100 text-gray-400'}`}>
+                  {step > idx ? <Check className="w-4 h-4" /> : step === idx && status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : step === idx && status === "error" ? <X className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current" />}
+                </div>
+                <span className={`text-sm font-semibold ${step >= idx ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {text}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {status === "error" && (
+            <div className="w-full p-4 bg-red-50 text-red-700 text-sm rounded-2xl mb-8 font-medium border border-red-100">
+              {errorMsg}
+            </div>
+          )}
+
+          {status === "error" && (
+             <button 
+               onClick={onCancel}
+               className="px-8 py-3 bg-gray-100 text-gray-700 rounded-full font-bold hover:bg-gray-200 transition-colors text-sm uppercase tracking-wider"
+             >
+               Voltar para a aplicação
+             </button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [query, setQuery] = useState("");
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
@@ -677,12 +709,12 @@ export default function App() {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [tableFilter, setTableFilter] = useState("");
+  const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('last_sync'));
   const [showExportModal, setShowExportModal] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
   const [expandedInventoryRows, setExpandedInventoryRows] = useState<Set<string>>(new Set());
   const [insightFilters, setInsightFilters] = useState({ ga: 'all', produto: 'all', subproduto: 'all' });
   const [inventoryViewMode, setInventoryViewMode] = useState<'table' | 'panel'>('table');
-  const [lastSyncDate, setLastSyncDate] = useState<string | null>(null);
   
   // Advanced Inventory State
   const [inventoryFilters, setInventoryFilters] = useState({
@@ -800,16 +832,13 @@ export default function App() {
     if (!q.trim()) return;
 
     const normalizedQ = normalizar(q);
-
-    // Intent Matcher for Sincronização
-    // A platform premium feature requested by product owner
     const syncIntents = [
-      "sincronizar confluence", "sync confluence", "atualizar confluence", 
-      "atualizar inventario", "sincronizar inventario", "atualizar base", "indexar artefatos"
+      "atualizar inventario", "atualizar inventário", "atualizar confluence", "atualizar confluencia", "atualizar confluência",
+      "sincronizar confluence", "sincronizar confluencia", "sincronizar confluência", "sincronizar inventario", "sincronizar inventário",
+      "sync confluence", "atualizar base"
     ];
-    const isSyncIntent = syncIntents.some(intent => normalizedQ.includes(normalizar(intent)));
 
-    if (isSyncIntent) {
+    if (syncIntents.some(intent => normalizedQ.includes(normalizar(intent)))) {
       setAppState("syncing");
       return;
     }
@@ -824,6 +853,7 @@ export default function App() {
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     try {
+      const normalizedQ = normalizar(q);
       const isInventory = normalizedQ.includes("inventario") || 
                         normalizedQ.includes("base completa") || 
                         normalizedQ.includes("lista") || 
@@ -836,7 +866,6 @@ export default function App() {
 
       setResults(data.resultados);
       setInsights(data.insights);
-      if (data.lastSync) setLastSyncDate(data.lastSync);
 
       if (isInventory) {
         setAppState("inventory_table");
@@ -1123,6 +1152,21 @@ export default function App() {
   return (
     <main className="app">
       <AnimatePresence>
+        {appState === 'syncing' && (
+          <SyncScreen 
+            onCancel={() => { setAppState('initial'); setQuery(''); }} 
+            onComplete={() => {
+              const now = new Date().toLocaleString('pt-BR');
+              localStorage.setItem('last_sync', now);
+              setLastSync(now);
+              setQuery('base completa');
+              executeSearch('base completa');
+            }} 
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showAdmin && currentUser.role === 'admin' && (
           <AdminUsers 
             users={usersDb}
@@ -1138,15 +1182,27 @@ export default function App() {
         {/* Header */}
         <header className="flex justify-between items-center mb-12">
           <div className="flex items-center gap-8 flex-1">
-            <div className="flex items-center gap-3 cursor-pointer group" onClick={resetSearch}>
+            <div className="flex flex-col cursor-pointer group" onClick={resetSearch}>
               <h1 className="brand-text text-2xl font-black tracking-tight text-gray-900 group-hover:text-red-600 transition-colors">
                 Hub de Artefatos
               </h1>
+              {lastSync && (
+                <span className="text-[9px] font-bold text-gray-400 tracking-wider">
+                  ÚLTIMA SYNC: {lastSync}
+                </span>
+              )}
             </div>
-            {lastSyncDate && appState !== "initial" && appState !== "decision" && appState !== "syncing" && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full">
-                <Clock className="w-3 h-3 text-gray-400" />
-                <span className="text-[10px] font-bold text-gray-500 tracking-wider">ÚLTIMA SINCRONIZAÇÃO: {formatDataBR(lastSyncDate)}</span>
+            
+            {appState !== "initial" && appState !== "decision" && !loading && (
+              <div className="relative flex-1 max-w-xl group">
+                <input 
+                  type="text" 
+                  className="w-full px-6 py-2.5 bg-gray-50 border border-transparent rounded-full text-sm focus:outline-none focus:bg-white focus:border-bradesco-red focus:ring-4 focus:ring-bradesco-red/10 transition-all font-medium"
+                  placeholder="Pesquisar novamente..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && executeSearch()}
+                />
               </div>
             )}
           </div>
@@ -1314,23 +1370,6 @@ export default function App() {
         <section className={`content ${appState === "initial" ? "hidden" : ""}`}>
           <NavigationModes />
           
-          {/* Syncing Area */}
-          <AnimatePresence>
-            {appState === "syncing" && (
-              <motion.section 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="py-12"
-              >
-                <SyncManager 
-                  onCancel={() => setAppState("initial")}
-                  onFinish={() => executeSearch("inventario")} 
-                />
-              </motion.section>
-            )}
-          </AnimatePresence>
-
           {/* Decision / Loading Area */}
           <section className={`decision ${appState === "decision" || loading || appState === "empty" ? "flex flex-col items-center justify-center text-center py-24" : "hidden"}`}>
             <div className="mb-8 scale-150 transform transition-transform duration-500">
