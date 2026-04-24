@@ -8,8 +8,22 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { chromium } from 'playwright';
+import readline from 'readline';
 
 const CONFLUENCE_BASE_URL = 'https://confluence.bradesco.com.br:8443';
+
+function waitForUserInput(prompt) {
+  return new Promise(resolve => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.question(prompt, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
 
 async function exportToJSON(data) {
   console.log(`[exportToJSON] Iniciando exportação para JSON. Quantidade: ${data.length}`);
@@ -28,7 +42,7 @@ async function buildInventory(rootPageId, maxReqRows = null) {
   
   console.log(`[buildInventory] Iniciando Playwright com sessão persistente em: ${userDataDir}`);
   const context = await chromium.launchPersistentContext(userDataDir, {
-    headless: true, // Use false para debugar visualmente na sua máquina corporativa
+    headless: false, // Use false para debugar visualmente na sua máquina corporativa
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors', '--disable-web-security'],
     ignoreHTTPSErrors: true
   });
@@ -42,11 +56,21 @@ async function buildInventory(rootPageId, maxReqRows = null) {
     
     await page.goto(ROOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
     
-    const currentUrl = page.url();
+    let currentUrl = page.url();
     console.log(`[buildInventory] URL atual após o carregamento: ${currentUrl}`);
 
     if (currentUrl.includes('login.action') || currentUrl.includes('dologin.action') || currentUrl.includes('login')) {
-      throw new Error('Usuário não autenticado no Confluence. Você precisa estar logado localmente para que o script execute via sessão.');
+      console.log('--- AUTENTICAÇÃO NECESSÁRIA ---');
+      await waitForUserInput('Faça login na janela aberta do Playwright e pressione Enter no terminal para continuar...');
+      
+      console.log(`[buildInventory] Navegando novamente para a página base: ${ROOT_URL}`);
+      await page.goto(ROOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      currentUrl = page.url();
+      console.log(`[buildInventory] URL atual após o re-carregamento: ${currentUrl}`);
+
+      if (currentUrl.includes('login.action') || currentUrl.includes('dologin.action') || currentUrl.includes('login')) {
+        throw new Error('Usuário não autenticado no Confluence. Você precisa estar logado localmente para que o script execute via sessão.');
+      }
     }
 
     console.log(`[buildInventory] Autenticação confirmada na URL. Injetando script de extração no browser...`);
