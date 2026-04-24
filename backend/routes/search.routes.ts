@@ -34,8 +34,8 @@ router.get("/inventario", (req, res) => {
  */
 router.post("/update-inventory", async (req, res) => {
   console.log(`[API] POST /api/update-inventory - Requisição recebida.`);
-  const { rootId, maxRows } = req.body;
-  console.log(`[API] Parâmetros: rootId=${rootId}, maxRows=${maxRows}`);
+  const { rootId, maxRows, username, password } = req.body;
+  console.log(`[API] Parâmetros: rootId=${rootId}, maxRows=${maxRows}, username fornecido: ${!!username}`);
   
   if (!rootId) {
     console.warn(`[API] Erro: ID root da página é obrigatório`);
@@ -45,7 +45,7 @@ router.post("/update-inventory", async (req, res) => {
   const startTime = Date.now();
   console.log(`[API] Chamando runCollection()`);
   try {
-    const data = await runCollection(rootId, maxRows || null);
+    const data = await runCollection(rootId, maxRows || null, username, password);
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`[API] runCollection() retornou sucesso. Quantidade: ${data.length}. Duração: ${duration}s`);
     res.json({ success: true, count: data.length });

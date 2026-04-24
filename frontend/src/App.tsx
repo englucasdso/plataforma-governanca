@@ -579,67 +579,61 @@ const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: User
 };
 
 const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel: () => void }) => {
-  const [step, setStep] = useState(0);
-  const [status, setStatus] = useState<"idle" | "running" | "success" | "error">("running");
+  const [step, setStep] = useState(-1);
+  const [status, setStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const steps = [
     "Conectando ao ambiente de documentação...",
     "Mapeando estrutura de produtos...",
     "Organizando artefatos e métricas...",
-    "Atualizando base de conhecimento local..."
+    "Atualizando base de conhecimento local...",
+    "Concluído"
   ];
 
-  const isFetchingRef = useRef(false);
+  const handleStartSync = async () => {
+    if (!username || !password) {
+      setErrorMsg("Digite seu usuário e senha do Confluence.");
+      return;
+    }
+    
+    setErrorMsg("");
+    setStatus("running");
+    setStep(0);
+    
+    try {
+      // Simular progressão visual da sincronização (já que pode demorar)
+      const timer1 = setTimeout(() => { if (status !== "error") setStep(1); }, 1500); 
+      const timer2 = setTimeout(() => { if (status !== "error") setStep(2); }, 12000); 
+      const timer3 = setTimeout(() => { if (status !== "error") setStep(3); }, 35000); 
 
-  useEffect(() => {
-    let isCancelled = false;
-
-    const runSync = async () => {
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
-
-      try {
-        setStep(0);
-        
-        // Simular progressão visual da sincronização (já que pode demorar)
-        const timer1 = setTimeout(() => { if (!isCancelled) setStep(1); }, 1500); 
-        const timer2 = setTimeout(() => { if (!isCancelled) setStep(2); }, 12000); 
-        const timer3 = setTimeout(() => { if (!isCancelled) setStep(3); }, 35000); 
-
-        const res = await fetch("/api/update-inventory", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rootId: "1542391004", maxRows: null })
-        });
-        
-        const data = await res.json();
-        
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-        
-        if (!res.ok) {
-           throw new Error(data.error || "Falha na sincronização com o Confluence");
-        }
-
-        if (isCancelled) return;
-        setStep(4);
-        setStatus("success");
-        await new Promise(r => setTimeout(r, 1500));
-        if (!isCancelled) onComplete();
-      } catch (err: any) {
-        if (isCancelled) return;
-        setStatus("error");
-        setErrorMsg(err.message || "Erro desconhecido");
-      } finally {
-        isFetchingRef.current = false;
+      const res = await fetch("/api/update-inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rootId: "1542391004", maxRows: null, username, password })
+      });
+      
+      const data = await res.json();
+      
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      
+      if (!res.ok) {
+         throw new Error(data.error || "Falha na sincronização com o Confluence");
       }
-    };
 
-    runSync();
-    return () => { isCancelled = true; };
-  }, []);
+      setStep(4);
+      setStatus("success");
+      await new Promise(r => setTimeout(r, 1500));
+      onComplete();
+    } catch (err: any) {
+      setStatus("error");
+      setErrorMsg(err.message || "Erro desconhecido");
+    }
+  };
 
   return (
     <motion.div 
@@ -653,36 +647,57 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
         
         <div className="flex flex-col items-center text-center">
           <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-8 relative">
-            {status === "running" && <Loader2 className="w-10 h-10 text-bradesco-red animate-spin" />}
+            {(status === "running" || status === "idle") && <Loader2 className={`w-10 h-10 text-bradesco-red ${status === "running" ? "animate-spin" : ""}`} />}
             {status === "success" && <CheckCircle2 className="w-10 h-10 text-green-500" />}
             {status === "error" && <AlertTriangle className="w-10 h-10 text-red-500" />}
-            
-            {status === "running" && (
-              <span className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-sm border border-gray-100">
-                <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />
-              </span>
-            )}
           </div>
 
           <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
             Verificando Base de Conhecimento
           </h2>
           <p className="text-gray-500 font-medium mb-10 max-w-md">
-            {status === "error" ? "Não foi possível concluir a verificação." : "Este processo garante as definições mais recentes. Não feche a janela."}
+            {status === "error" ? "Não foi possível concluir a verificação." : status === "idle" ? "Insira suas credenciais do Confluence para atualizar a base de conhecimento." : "Este processo garante as definições mais recentes. Não feche a janela."}
           </p>
 
-          <div className="w-full space-y-4 mb-10 text-left">
-            {steps.map((text, idx) => (
-              <div key={idx} className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${step === idx ? 'bg-red-50 border border-red-100' : step > idx ? 'bg-gray-50' : 'opacity-40'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${step > idx ? 'bg-green-100 text-green-600' : step === idx && status === 'error' ? 'bg-red-100 text-red-600' : step === idx ? 'bg-white shadow-sm text-bradesco-red' : 'bg-gray-100 text-gray-400'}`}>
-                  {step > idx ? <Check className="w-4 h-4" /> : step === idx && status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : step === idx && status === "error" ? <X className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current" />}
-                </div>
-                <span className={`text-sm font-semibold ${step >= idx ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {text}
-                </span>
+          {status === "idle" && (
+            <div className="w-full max-w-sm space-y-4 mb-8 text-left">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Usuário (Ex: i462211)</label>
+                <input 
+                  type="text" 
+                  value={username} 
+                  onChange={(e) => setUsername(e.target.value)} 
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bradesco-red focus:border-bradesco-red outline-none"
+                  placeholder="Seu usuário de rede"
+                />
               </div>
-            ))}
-          </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bradesco-red focus:border-bradesco-red outline-none"
+                  placeholder="Sua senha corporativa"
+                />
+              </div>
+            </div>
+          )}
+
+          {status !== "idle" && (
+            <div className="w-full space-y-4 mb-10 text-left">
+              {steps.map((text, idx) => (
+                <div key={idx} className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${step === idx ? 'bg-red-50 border border-red-100' : step > idx ? 'bg-gray-50' : 'opacity-40'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${step > idx ? 'bg-green-100 text-green-600' : step === idx && status === 'error' ? 'bg-red-100 text-red-600' : step === idx ? 'bg-white shadow-sm text-bradesco-red' : 'bg-gray-100 text-gray-400'}`}>
+                    {step > idx ? <Check className="w-4 h-4" /> : step === idx && status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : step === idx && status === "error" ? <X className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current" />}
+                  </div>
+                  <span className={`text-sm font-semibold ${step >= idx ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {status === "error" && (
             <div className="w-full p-4 bg-red-50 text-red-700 text-sm rounded-2xl mb-8 font-medium border border-red-100">
@@ -691,15 +706,23 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
           )}
 
           <div className="flex flex-col gap-3">
+             {status === "idle" && (
+               <button 
+                 onClick={handleStartSync}
+                 className="px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider bg-bradesco-red text-white hover:bg-black w-full"
+               >
+                 Iniciar Sincronização
+               </button>
+             )}
              <button 
                onClick={onCancel}
                className={`px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider ${
-                 status === "error" 
+                 status === "error" || status === "idle"
                    ? "bg-gray-100 text-gray-700 hover:bg-gray-200" 
                    : "bg-red-50 text-bradesco-red hover:bg-red-100"
                }`}
              >
-               {status === "error" ? "Voltar para a aplicação" : "Cancelar Sincronização"}
+               {status === "error" || status === "idle" ? "Voltar para a aplicação" : "Cancelar Sincronização"}
              </button>
           </div>
         </div>

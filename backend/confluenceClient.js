@@ -20,7 +20,7 @@ async function exportToJSON(data) {
   console.log(`[exportToJSON] Inventário atualizado no backend com ${data.length} artefatos.`);
 }
 
-async function buildInventory(rootPageId, maxReqRows = null) {
+async function buildInventory(rootPageId, maxReqRows = null, username, password) {
   console.log(`[buildInventory] Iniciando mapeamento da estrutura (rootId: ${rootPageId})`);
   
   // Define o diretório para armazenar a sessão do usuário/cookies no projeto
@@ -28,19 +28,21 @@ async function buildInventory(rootPageId, maxReqRows = null) {
   
   console.log(`[buildInventory] Iniciando Playwright com sessão persistente em: ${userDataDir}`);
   const context = await chromium.launchPersistentContext(userDataDir, {
-    headless: false,
+    headless: true, // headless true pois vamos injetar as credenciais via código
     channel: 'chrome',
     ignoreHTTPSErrors: true,
     viewport: null,
     args: [
       '--start-maximized',
-      '--ignore-certificate-errors'
+      '--ignore-certificate-errors',
+      '--no-sandbox', 
+      '--disable-setuid-sandbox', 
+      '--disable-web-security'
     ]
   });
 
   // O launchPersistentContext já cria uma aba padrão
   const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
-  await page.bringToFront();
   
   try {
     const ROOT_URL = `${CONFLUENCE_BASE_URL}/pages/viewpage.action?pageId=${rootPageId}`;
@@ -53,25 +55,40 @@ async function buildInventory(rootPageId, maxReqRows = null) {
 
     if (currentUrl.includes('login.action') || currentUrl.includes('dologin.action') || currentUrl.includes('login')) {
       console.log('--- AUTENTICAÇÃO NECESSÁRIA ---');
-      console.log('Faça login na janela do Chrome que abriu. Aguardando até sair da tela de login...');
-      
-      try {
-        await page.waitForFunction(() => {
-          return !window.location.href.includes('login.action') &&
-                 !window.location.href.includes('dologin.action') &&
-                 !window.location.href.includes('login');
-        }, null, { timeout: 300000 });
-      } catch (err) {
-        throw new Error('Usuário não concluiu a autenticação no tempo limite de 5 minutos.');
+      if (!username || !password) {
+        throw new Error('Credenciais não fornecidas. Digite seu usuário e senha no frontend.');
       }
       
-      console.log(`[buildInventory] Navegando novamente para a página base: ${ROOT_URL}`);
-      await page.goto(ROOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      console.log('[buildInventory] Preenchendo formulário de login do Confluence...');
+      
+      await page.fill('#os_username', username);
+      await page.fill('#os_password', password);
+      
+      console.log('[buildInventory] Clicando em Login e aguardando redirecionamento...');
+      await Promise.all([
+         page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {}),
+         page.click('#loginButton')
+      ]);
+      
       currentUrl = page.url();
-      console.log(`[buildInventory] URL atual após o re-carregamento: ${currentUrl}`);
-
       if (currentUrl.includes('login.action') || currentUrl.includes('dologin.action') || currentUrl.includes('login')) {
-        throw new Error('Usuário não autenticado no Confluence. Você precisa estar logado localmente para que o script execute via sessão.');
+         const hasErrorAlert = await page.evaluate(() => {
+            return document.body.innerText.includes('Authentication failed') || 
+                   document.body.innerText.includes('Senha Incorreta') ||
+                   document.body.innerText.includes('Invalid credentials');
+         });
+         
+         if (hasErrorAlert) {
+            throw new Error('Falha na autenticação: usuário ou senha incorretos.');
+         } else {
+            throw new Error('Falha ao logar no Confluence. A URL continuou na página de login.');
+         }
+      }
+      
+      // Mesmo se saiu do login, vamos garantir que fomos para a página raiz
+      if (!currentUrl.includes(rootPageId)) {
+        console.log(`[buildInventory] Navegando novamente para a página base: ${ROOT_URL}`);
+        await page.goto(ROOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
       }
     }
 
@@ -324,7 +341,7 @@ async function buildInventory(rootPageId, maxReqRows = null) {
 
 let isCollecting = false;
 
-async function runCollection(rootPageId, maxRows) {
+async function runCollection(rootPageId, maxRows, username, password) {
   console.log(`[runCollection] INÍCIO da execução - Root ID: ${rootPageId}, Max Rows: ${maxRows}`);
   if (isCollecting) {
     console.error(`[runCollection] Erro: tentou iniciar, mas já havia uma sincronização em andamento.`);
@@ -335,7 +352,7 @@ async function runCollection(rootPageId, maxRows) {
   try {
     console.time('Coleta Confluence V2 Browser Context');
     console.log(`[runCollection] Chamando buildInventory...`);
-    const inventory = await buildInventory(rootPageId, maxRows);
+    const inventory = await buildInventory(rootPageId, maxRows, username, password);
     console.log(`[runCollection] buildInventory concluído. Chamando exportToJSON...`);
     await exportToJSON(inventory);
     console.timeEnd('Coleta Confluence V2 Browser Context');
