@@ -2,11 +2,11 @@
  * Confluence Data Collector Client
  * 
  * Este módulo é responsável por extrair dados do Confluence via API REST
- * implementando parse refinado usando cheerio e respeitando o Node 18.17.
+ * implementando parse com Playwright e respeitando o Node 18.17.0.
  */
 import fs from 'fs/promises';
 import path from 'path';
-import * as cheerio from 'cheerio';
+import { chromium } from 'playwright';
 
 const CONFLUENCE_BASE_URL = 'https://confluence.bradesco.com.br:8443';
 const API_PATH = '/rest/api/content';
@@ -41,34 +41,12 @@ async function fetchConfluenceText(endpoint) {
   return response.text();
 }
 
-// --- Funções Auxiliares (Baseadas na referência técnica do cliente) ---
+// --- Funções Auxiliares (Baseadas na referência técnica) ---
 const MAX_CARACTERES_PRODUTO = 20;
 const MAX_CARACTERES_SUBPRODUTO = 15;
 
 function limpar(txt) {
   return String(txt || '').replace(/\s+/g, ' ').trim();
-}
-
-function normalizarChave(txt) {
-  return limpar(txt)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[|/()\-]+/g, ' ')
-    .replace(/[^\w\s]/g, '')
-    .replace(/\s+/g, '_');
-}
-
-function extrairValorDeCelula($cell) {
-  if (!$cell) return '';
-
-  const link = $cell.find('a[href]').first();
-  if (link.length > 0 && link.attr('href')) return link.attr('href').trim();
-
-  const panelContent = $cell.find('.panelContent');
-  if (panelContent.length > 0) return limpar(panelContent.text());
-
-  return limpar($cell.text());
 }
 
 function ehMapaValidoPorTitulo(title) {
@@ -120,69 +98,84 @@ async function buscarFilhasDiretas(pageId, pageSize = 100) {
   return pages;
 }
 
-function extrairCamposCabecalhoDoDoc($doc) {
-  const tabela0 = $doc('table').first();
-  if (tabela0.length === 0) return {};
-
-  const linhas = tabela0.find('tr').toArray();
-  const campos = {};
-
-  for (const linha of linhas) {
-    const $linha = cheerio.load(linha); // Load html of the row
-    const cells = $linha('th, td').toArray();
-    if (cells.length < 2) continue;
+async function extrairDadosPlaywright(html, page) {
+  await page.setContent(html);
+  
+  return await page.evaluate(() => {
+    function limpar(txt) {
+      return String(txt || '').replace(/\s+/g, ' ').trim();
+    }
     
-    // We can also just use the doc instance instead of reloading:
-    const $cell0 = $doc(cells[0]);
-    const $cell1 = $doc(cells[1]);
+    function normalizarChave(txt) {
+       return limpar(txt)
+         .normalize('NFD')
+         .replace(/[\u0300-\u036f]/g, '')
+         .toLowerCase()
+         .replace(/[|/()\-]+/g, ' ')
+         .replace(/[^\w\s]/g, '')
+         .replace(/\s+/g, '_');
+    }
+    
+    function extrairValorDeCelula(cell) {
+       if (!cell) return '';
+       const link = cell.querySelector('a[href]');
+       // Only get attribute if it exists, to avoid null accessing issues
+       if (link && link.getAttribute('href')) return link.getAttribute('href').trim();
 
-    const label = limpar($cell0.text());
-    const valor = extrairValorDeCelula($cell1);
+       const panelContent = cell.querySelector('.panelContent');
+       if (panelContent) return limpar(panelContent.textContent);
 
-    if (!label) continue;
-    campos[normalizarChave(label)] = valor;
-  }
-  return campos;
-}
-
-function classificarTipoMapaDoDoc($doc) {
-  const tabelas = $doc('table').toArray().slice(0, 40);
-  const regexDataLayer = /datalayer\s*\.\s*push\s*\(\s*\{/i;
-
-  let ehMapa = false;
-  let temGA3 = false;
-
-  for (const tabela of tabelas) {
-    const defaultText = $doc(tabela).text() || '';
-    const texto = String(defaultText).replace(/\s+/g, ' ').trim().toLowerCase();
-
-    if (regexDataLayer.test(texto)) {
-      ehMapa = true;
+       return limpar(cell.textContent);
     }
 
-    const temEventCategory = texto.includes('event_category');
-    const temEventAction = texto.includes('event_action');
-    const temEventLabel = texto.includes('event_label');
+    let cabecalho = {};
+    const tabela0 = document.querySelectorAll('table')[0];
+    if (tabela0) {
+       const linhas = Array.from(tabela0.querySelectorAll('tr'));
+       for (const linha of linhas) {
+          const cells = Array.from(linha.querySelectorAll('th, td'));
+          if (cells.length < 2) continue;
 
-    if (temEventCategory && temEventAction && temEventLabel) {
-      temGA3 = true;
+          const label = limpar(cells[0].textContent);
+          const valor = extrairValorDeCelula(cells[1]);
+
+          if (label) {
+             cabecalho[normalizarChave(label)] = valor;
+          }
+       }
     }
-  }
 
-  if (!ehMapa) return '';
-  if (temGA3) return 'GA3';
-  return 'GA4';
+    const tabelas = Array.from(document.querySelectorAll('table')).slice(0, 40);
+    const regexDataLayer = /datalayer\s*\.\s*push\s*\(\s*\{/i;
+
+    let ehMapa = false;
+    let temGA3 = false;
+
+    for (const tabela of tabelas) {
+       const texto = String(tabela.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+       if (regexDataLayer.test(texto)) {
+         ehMapa = true;
+       }
+
+       if (texto.includes('event_category') && texto.includes('event_action') && texto.includes('event_label')) {
+          temGA3 = true;
+       }
+    }
+
+    let tipo_mapa = '';
+    if (ehMapa) {
+       tipo_mapa = temGA3 ? 'GA3' : 'GA4';
+    }
+
+    return { cabecalho, tipo_mapa };
+  });
 }
 
-async function extrairDadosPagina(pageId) {
+async function extrairDadosPagina(pageId, pwPage) {
   try {
     const endpoint = `/pages/viewpage.action?pageId=${pageId}`;
     const html = await fetchConfluenceText(endpoint);
-    const $doc = cheerio.load(html);
-
-    const cabecalho = extrairCamposCabecalhoDoDoc($doc);
-    const tipo_mapa = classificarTipoMapaDoDoc($doc);
-    return { cabecalho, tipo_mapa };
+    return await extrairDadosPlaywright(html, pwPage);
   } catch (e) {
     return { cabecalho: {}, tipo_mapa: '' };
   }
@@ -190,6 +183,10 @@ async function extrairDadosPagina(pageId) {
 
 async function buildInventory(rootPageId, maxReqRows = null) {
   const allRows = [];
+  
+  // Launch playwright browser
+  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const pwPage = await browser.newPage();
 
   async function percorrerArvore(pageId, nivel, parentTitulo, trilha) {
     if (maxReqRows !== null && allRows.length >= maxReqRows) return;
@@ -211,7 +208,7 @@ async function buildInventory(rootPageId, maxReqRows = null) {
       let tipo_mapa = '';
 
       if (ehFolha) {
-        const dadosPagina = await extrairDadosPagina(page.id);
+        const dadosPagina = await extrairDadosPagina(page.id, pwPage);
         tipo_mapa = dadosPagina.tipo_mapa;
 
         if (ehMapaValidoPorTitulo(page.title)) {
@@ -254,7 +251,12 @@ async function buildInventory(rootPageId, maxReqRows = null) {
     }
   }
 
-  await percorrerArvore(rootPageId, 1, 'Mapas de Métricas - Salla', []);
+  try {
+    await percorrerArvore(rootPageId, 1, 'Mapas de Métricas - Salla', []);
+  } finally {
+    await browser.close();
+  }
+  
   return allRows;
 }
 
@@ -265,10 +267,10 @@ async function exportToJSON(data) {
 }
 
 async function runCollection(rootPageId, maxRows) {
-  console.time('Coleta Confluence V2');
+  console.time('Coleta Confluence V2 Playwright');
   const inventory = await buildInventory(rootPageId, maxRows);
   await exportToJSON(inventory);
-  console.timeEnd('Coleta Confluence V2');
+  console.timeEnd('Coleta Confluence V2 Playwright');
   return inventory;
 }
 
