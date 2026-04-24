@@ -33,13 +33,25 @@ router.get("/inventario", (req, res) => {
  * lendo diretamente do sistema Confluence.
  */
 router.post("/update-inventory", async (req, res) => {
+  console.log(`[API] POST /api/update-inventory - Requisição recebida.`);
   const { rootId, maxRows } = req.body;
-  if (!rootId) return res.status(400).json({ error: "ID root da página é obrigatório" });
+  console.log(`[API] Parâmetros: rootId=${rootId}, maxRows=${maxRows}`);
   
+  if (!rootId) {
+    console.warn(`[API] Erro: ID root da página é obrigatório`);
+    return res.status(400).json({ error: "ID root da página é obrigatório" });
+  }
+  
+  const startTime = Date.now();
+  console.log(`[API] Chamando runCollection()`);
   try {
     const data = await runCollection(rootId, maxRows || null);
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`[API] runCollection() retornou sucesso. Quantidade: ${data.length}. Duração: ${duration}s`);
     res.json({ success: true, count: data.length });
   } catch (error: any) {
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.error(`[API] runCollection() retornou erro após ${duration}s: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 });

@@ -600,28 +600,29 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
       isFetchingRef.current = true;
 
       try {
-        await new Promise(r => setTimeout(r, 1000));
-
-        if (isCancelled) return;
-        setStep(1);
+        setStep(0);
+        
+        // Simular progressão visual da sincronização (já que pode demorar)
+        const timer1 = setTimeout(() => { if (!isCancelled) setStep(1); }, 1500); 
+        const timer2 = setTimeout(() => { if (!isCancelled) setStep(2); }, 12000); 
+        const timer3 = setTimeout(() => { if (!isCancelled) setStep(3); }, 35000); 
 
         const res = await fetch("/api/update-inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ rootId: "1542391004", maxRows: null })
         });
+        
         const data = await res.json();
         
-        if (!res.ok) throw new Error(data.error || "Falha na sincronização");
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+        
+        if (!res.ok) {
+           throw new Error(data.error || "Falha na sincronização com o Confluence");
+        }
 
-        if (isCancelled) return;
-        setStep(2);
-        await new Promise(r => setTimeout(r, 800));
-        
-        if (isCancelled) return;
-        setStep(3);
-        await new Promise(r => setTimeout(r, 800));
-        
         if (isCancelled) return;
         setStep(4);
         setStatus("success");
@@ -631,6 +632,8 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
         if (isCancelled) return;
         setStatus("error");
         setErrorMsg(err.message || "Erro desconhecido");
+      } finally {
+        isFetchingRef.current = false;
       }
     };
 

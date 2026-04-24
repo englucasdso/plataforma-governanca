@@ -25,20 +25,38 @@ const getHeaders = () => {
 // --- Funções Auxiliares de Fetch ---
 async function fetchConfluence(endpoint) {
   const url = endpoint.startsWith('http') ? endpoint : `${CONFLUENCE_BASE_URL}${endpoint}`;
-  const response = await fetch(url, { headers: getHeaders(), credentials: 'omit' });
-  if (!response.ok) {
-    throw new Error(`Erro na API Confluence: ${response.status} ${response.statusText}`);
+  console.log(`[fetchConfluence] GET JSON: ${url}`);
+  try {
+    const response = await fetch(url, { headers: getHeaders(), credentials: 'omit', signal: AbortSignal.timeout(60000) });
+    console.log(`[fetchConfluence] Status: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Erro na API Confluence: ${response.status} ${response.statusText}`);
+    }
+    return response.json();
+  } catch (error) {
+    if (error.name === 'TimeoutError') {
+      throw new Error(`Timeout de 60s excedido na API (JSON): ${url}`);
+    }
+    throw error;
   }
-  return response.json();
 }
 
 async function fetchConfluenceText(endpoint) {
   const url = endpoint.startsWith('http') ? endpoint : `${CONFLUENCE_BASE_URL}${endpoint}`;
-  const response = await fetch(url, { headers: getHeaders(), credentials: 'omit' });
-  if (!response.ok) {
-    throw new Error(`Erro na API Confluence (Text): ${response.status} ${response.statusText}`);
+  console.log(`[fetchConfluence] GET TEXT: ${url}`);
+  try {
+    const response = await fetch(url, { headers: getHeaders(), credentials: 'omit', signal: AbortSignal.timeout(60000) });
+    console.log(`[fetchConfluence] Status: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Erro na API Confluence (Text): ${response.status} ${response.statusText}`);
+    }
+    return response.text();
+  } catch (error) {
+    if (error.name === 'TimeoutError') {
+      throw new Error(`Timeout de 60s excedido na API (TEXT): ${url}`);
+    }
+    throw error;
   }
-  return response.text();
 }
 
 // --- Funções Auxiliares (Baseadas na referência técnica) ---
@@ -182,20 +200,34 @@ async function extrairDadosPagina(pageId, pwPage) {
 }
 
 async function buildInventory(rootPageId, maxReqRows = null) {
+  console.log(`[buildInventory] Iniciando mapeamento da estrutura de produtos (rootId: ${rootPageId})`);
   const allRows = [];
   
   // Launch playwright browser
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const pwPage = await browser.newPage();
 
+  const processStartTime = Date.now();
+
   async function percorrerArvore(pageId, nivel, parentTitulo, trilha) {
+    if (Date.now() - processStartTime > 300000) {
+       throw new Error('Tempo limite de 5 minutos excedido durante o mapeamento (Timeout Global).');
+    }
+
     if (maxReqRows !== null && allRows.length >= maxReqRows) return;
 
+    console.log(`[buildInventory] Buscando filhas da página ${pageId} (Nível ${nivel})...`);
     const children = await buscarFilhasDiretas(pageId);
+    console.log(`[buildInventory] Encontradas ${children.length} filhas para a página ${pageId}.`);
 
     for (const page of children) {
+      if (Date.now() - processStartTime > 300000) {
+         throw new Error('Tempo limite de 5 minutos excedido durante a organização de artefatos (Timeout Global).');
+      }
+
       if (maxReqRows !== null && allRows.length >= maxReqRows) break;
 
+      console.log(`[buildInventory] Processando página ID: ${page.id} - Título: ${page.title}`);
       const netas = await buscarFilhasDiretas(page.id, 100);
       const ehFolha = netas.length === 0;
 
@@ -208,6 +240,7 @@ async function buildInventory(rootPageId, maxReqRows = null) {
       let tipo_mapa = '';
 
       if (ehFolha) {
+        console.log(`[buildInventory] Página ${page.id} é folha. Extraindo dados com Playwright...`);
         const dadosPagina = await extrairDadosPagina(page.id, pwPage);
         tipo_mapa = dadosPagina.tipo_mapa;
 
@@ -261,25 +294,34 @@ async function buildInventory(rootPageId, maxReqRows = null) {
 }
 
 async function exportToJSON(data) {
+  console.log(`[exportToJSON] Iniciando exportação para JSON. Quantidade: ${data.length}`);
   const filePath = path.resolve('backend/data/inventario.json');
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-  console.log(`Inventário atualizado no backend com ${data.length} artefatos.`);
+  console.log(`[exportToJSON] Inventário atualizado no backend com ${data.length} artefatos.`);
 }
 
 let isCollecting = false;
 
 async function runCollection(rootPageId, maxRows) {
+  console.log(`[runCollection] INÍCIO da execução - Root ID: ${rootPageId}, Max Rows: ${maxRows}`);
   if (isCollecting) {
+    console.error(`[runCollection] Erro: tentou iniciar, mas já havia uma sincronização em andamento.`);
     throw new Error('A sincronização já está em andamento. Aguarde...');
   }
   isCollecting = true;
 
   try {
     console.time('Coleta Confluence V2 Playwright');
+    console.log(`[runCollection] Chamando buildInventory...`);
     const inventory = await buildInventory(rootPageId, maxRows);
+    console.log(`[runCollection] buildInventory concluído. Chamando exportToJSON...`);
     await exportToJSON(inventory);
     console.timeEnd('Coleta Confluence V2 Playwright');
+    console.log(`[runCollection] FIM da execução com sucesso.`);
     return inventory;
+  } catch (error) {
+    console.error(`[runCollection] Erro capturado na coleta: ${error.message}`);
+    throw error;
   } finally {
     isCollecting = false;
   }
