@@ -590,16 +590,22 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
     "Atualizando base de conhecimento local..."
   ];
 
+  const isFetchingRef = useRef(false);
+
   useEffect(() => {
     let isCancelled = false;
 
     const runSync = async () => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
       try {
         await new Promise(r => setTimeout(r, 1000));
+
         if (isCancelled) return;
         setStep(1);
 
-        const res = await fetch("/api/collect", {
+        const res = await fetch("/api/update-inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ rootId: "1542391004", maxRows: null })
@@ -827,7 +833,11 @@ export default function App() {
    * Caso contrário, ele busca com base em palavras exatas.
    * @param overrideQuery - Se passado, sobrepõe o texto digitado (usado ao clicar nos atalhos)
    */
+  const isSearchingRef = useRef(false);
+
   const executeSearch = async (overrideQuery?: string) => {
+    if (isSearchingRef.current || loading) return;
+
     const q = overrideQuery ?? query;
     if (!q.trim()) return;
 
@@ -843,6 +853,7 @@ export default function App() {
       return;
     }
 
+    isSearchingRef.current = true;
     setLoading(true);
     setAppState("results");
     setResults([]);
@@ -882,6 +893,7 @@ export default function App() {
       setAppState("empty");
     } finally {
       setLoading(false);
+      isSearchingRef.current = false;
     }
   };
 

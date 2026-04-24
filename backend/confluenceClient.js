@@ -266,13 +266,25 @@ async function exportToJSON(data) {
   console.log(`Inventário atualizado no backend com ${data.length} artefatos.`);
 }
 
+let isCollecting = false;
+
 async function runCollection(rootPageId, maxRows) {
-  console.time('Coleta Confluence V2 Playwright');
-  const inventory = await buildInventory(rootPageId, maxRows);
-  await exportToJSON(inventory);
-  console.timeEnd('Coleta Confluence V2 Playwright');
-  return inventory;
+  if (isCollecting) {
+    throw new Error('A sincronização já está em andamento. Aguarde...');
+  }
+  isCollecting = true;
+
+  try {
+    console.time('Coleta Confluence V2 Playwright');
+    const inventory = await buildInventory(rootPageId, maxRows);
+    await exportToJSON(inventory);
+    console.timeEnd('Coleta Confluence V2 Playwright');
+    return inventory;
+  } finally {
+    isCollecting = false;
+  }
 }
+
 
 export {
   runCollection

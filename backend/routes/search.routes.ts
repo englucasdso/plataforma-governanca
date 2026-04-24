@@ -28,11 +28,11 @@ router.get("/inventario", (req, res) => {
 });
 
 /**
- * ROTA: POST /api/collect
+ * ROTA: POST /api/update-inventory
  * Uma rota "admin" usada para disparar a atualização do banco de dados 
- * lendo lábios diretamente do sistema Confluence.
+ * lendo diretamente do sistema Confluence.
  */
-router.post("/collect", async (req, res) => {
+router.post("/update-inventory", async (req, res) => {
   const { rootId, maxRows } = req.body;
   if (!rootId) return res.status(400).json({ error: "ID root da página é obrigatório" });
   
