@@ -8,22 +8,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { chromium } from 'playwright';
-import readline from 'readline';
 
 const CONFLUENCE_BASE_URL = 'https://confluence.bradesco.com.br:8443';
-
-function waitForUserInput(prompt) {
-  return new Promise(resolve => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
-}
 
 async function exportToJSON(data) {
   console.log(`[exportToJSON] Iniciando exportação para JSON. Quantidade: ${data.length}`);
@@ -61,7 +47,13 @@ async function buildInventory(rootPageId, maxReqRows = null) {
 
     if (currentUrl.includes('login.action') || currentUrl.includes('dologin.action') || currentUrl.includes('login')) {
       console.log('--- AUTENTICAÇÃO NECESSÁRIA ---');
-      await waitForUserInput('Faça login na janela aberta do Playwright e pressione Enter no terminal para continuar...');
+      console.log('Por favor, faça login na janela aberta do Chrome/Playwright. Aguardando até 5 minutos...');
+      
+      try {
+        await page.waitForURL((url) => !url.href.includes('login.action') && !url.href.includes('dologin.action') && !url.href.includes('login'), { timeout: 300000 });
+      } catch (err) {
+        throw new Error('Usuário não concluiu a autenticação no tempo limite de 5 minutos.');
+      }
       
       console.log(`[buildInventory] Navegando novamente para a página base: ${ROOT_URL}`);
       await page.goto(ROOT_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });

@@ -690,14 +690,18 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
             </div>
           )}
 
-          {status === "error" && (
+          <div className="flex flex-col gap-3">
              <button 
                onClick={onCancel}
-               className="px-8 py-3 bg-gray-100 text-gray-700 rounded-full font-bold hover:bg-gray-200 transition-colors text-sm uppercase tracking-wider"
+               className={`px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider ${
+                 status === "error" 
+                   ? "bg-gray-100 text-gray-700 hover:bg-gray-200" 
+                   : "bg-red-50 text-bradesco-red hover:bg-red-100"
+               }`}
              >
-               Voltar para a aplicação
+               {status === "error" ? "Voltar para a aplicação" : "Cancelar Sincronização"}
              </button>
-          )}
+          </div>
         </div>
       </div>
     </motion.div>
