@@ -28,13 +28,19 @@ async function buildInventory(rootPageId, maxReqRows = null) {
   
   console.log(`[buildInventory] Iniciando Playwright com sessão persistente em: ${userDataDir}`);
   const context = await chromium.launchPersistentContext(userDataDir, {
-    headless: false, // Use false para debugar visualmente na sua máquina corporativa
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors', '--disable-web-security'],
-    ignoreHTTPSErrors: true
+    headless: false,
+    channel: 'chrome',
+    ignoreHTTPSErrors: true,
+    viewport: null,
+    args: [
+      '--start-maximized',
+      '--ignore-certificate-errors'
+    ]
   });
 
   // O launchPersistentContext já cria uma aba padrão
   const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+  await page.bringToFront();
   
   try {
     const ROOT_URL = `${CONFLUENCE_BASE_URL}/pages/viewpage.action?pageId=${rootPageId}`;
@@ -47,10 +53,14 @@ async function buildInventory(rootPageId, maxReqRows = null) {
 
     if (currentUrl.includes('login.action') || currentUrl.includes('dologin.action') || currentUrl.includes('login')) {
       console.log('--- AUTENTICAÇÃO NECESSÁRIA ---');
-      console.log('Por favor, faça login na janela aberta do Chrome/Playwright. Aguardando até 5 minutos...');
+      console.log('Faça login na janela do Chrome que abriu. Aguardando até sair da tela de login...');
       
       try {
-        await page.waitForURL((url) => !url.href.includes('login.action') && !url.href.includes('dologin.action') && !url.href.includes('login'), { timeout: 300000 });
+        await page.waitForFunction(() => {
+          return !window.location.href.includes('login.action') &&
+                 !window.location.href.includes('dologin.action') &&
+                 !window.location.href.includes('login');
+        }, null, { timeout: 300000 });
       } catch (err) {
         throw new Error('Usuário não concluiu a autenticação no tempo limite de 5 minutos.');
       }
