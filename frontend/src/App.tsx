@@ -40,7 +40,8 @@ import {
   LayoutList,
   RefreshCw,
   Check,
-  Loader2
+  Loader2,
+  KeyRound
 } from "lucide-react";
 import { fetchInventory, searchContent } from "@/services/api";
 import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "@/types";
@@ -525,13 +526,8 @@ const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: User
             <Landmark className="w-8 h-8" />
           </div>
           <h1 className="text-[26px] font-black text-gray-900 mb-1 tracking-tight">Hub de Artefatos</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center gap-3">
             <p className="text-gray-400 text-sm font-medium">Visualização e análise do ecossistema de mensuração</p>
-            {lastSync && (
-              <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full border border-gray-200 shadow-sm flex items-center gap-1.5">
-                <Clock className="w-3 h-3" /> Atualizado: {lastSync}
-              </span>
-            )}
           </div>
         </div>
 
@@ -570,20 +566,101 @@ const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: User
           </button>
         </form>
 
-        <div className="mt-10 pt-10 border-t border-gray-100 text-center">
-          <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">bradesco - beta v1.0.0</p>
+        <div className="mt-10 pt-10 border-t border-gray-100 flex flex-col justify-center text-center gap-1">
+          <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">bradesco - beta v2.0.0</p>
+          {lastSync && (
+            <p className="text-[9px] font-medium text-gray-400">Última sincronização: {lastSync}</p>
+          )}
         </div>
       </motion.div>
     </div>
   );
 };
 
-const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel: () => void }) => {
-  const [step, setStep] = useState(-1);
-  const [status, setStatus] = useState<"idle" | "running" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
+const AuthScreen = ({ onLogin, onCancel }: { onLogin: (u: string, p: string) => void, onCancel: () => void }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username || !password) {
+      setErrorMsg("Por favor, preencha usuário e senha.");
+      return;
+    }
+    onLogin(username, password);
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-md"
+    >
+      <div className="bg-white rounded-[40px] p-12 max-w-md w-full shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-bradesco-gradient" />
+        <div className="flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-bradesco-red shadow-sm">
+             <KeyRound className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+            Autenticação Confluence
+          </h2>
+          <p className="text-gray-500 font-medium mb-8 text-sm">
+            Faça login para permitir a sincronização
+          </p>
+
+          <form onSubmit={handleSubmit} className="w-full space-y-4 mb-2 text-left">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Usuário</label>
+              <input 
+                type="text" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bradesco-red focus:border-bradesco-red outline-none transition-all placeholder:text-gray-400"
+                placeholder="Ex: i462211"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
+              <input 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bradesco-red focus:border-bradesco-red outline-none transition-all placeholder:text-gray-400"
+                placeholder="Sua senha corporativa"
+              />
+            </div>
+            {errorMsg && (
+              <div className="p-3 bg-red-50 text-red-600 text-xs rounded-xl font-medium border border-red-100 text-center">
+                {errorMsg}
+              </div>
+            )}
+            <div className="pt-4 flex flex-col gap-3">
+              <button 
+                type="submit"
+                className="px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider bg-bradesco-red text-white hover:bg-black w-full"
+              >
+                Continuar
+              </button>
+              <button 
+                type="button"
+                onClick={onCancel}
+                className="px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider bg-gray-50 text-gray-600 hover:bg-gray-100 w-full"
+              >
+                Voltar para busca
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const SyncScreen = ({ username, password, onComplete, onCancel }: { username: string, password: string, onComplete: () => void, onCancel: () => void }) => {
+  const [step, setStep] = useState(0);
+  const [status, setStatus] = useState<"running" | "success" | "error">("running");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const steps = [
     "Conectando ao ambiente de documentação...",
@@ -593,47 +670,56 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
     "Concluído"
   ];
 
-  const handleStartSync = async () => {
-    if (!username || !password) {
-      setErrorMsg("Digite seu usuário e senha do Confluence.");
-      return;
-    }
-    
-    setErrorMsg("");
-    setStatus("running");
-    setStep(0);
-    
+  const handleCancelAsync = async () => {
     try {
-      // Simular progressão visual da sincronização (já que pode demorar)
-      const timer1 = setTimeout(() => { if (status !== "error") setStep(1); }, 1500); 
-      const timer2 = setTimeout(() => { if (status !== "error") setStep(2); }, 12000); 
-      const timer3 = setTimeout(() => { if (status !== "error") setStep(3); }, 35000); 
-
-      const res = await fetch("/api/update-inventory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rootId: "1542391004", maxRows: null, username, password })
-      });
-      
-      const data = await res.json();
-      
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      
-      if (!res.ok) {
-         throw new Error(data.error || "Falha na sincronização com o Confluence");
-      }
-
-      setStep(4);
-      setStatus("success");
-      await new Promise(r => setTimeout(r, 1500));
-      onComplete();
-    } catch (err: any) {
-      setStatus("error");
-      setErrorMsg(err.message || "Erro desconhecido");
-    }
+      await fetch("/api/cancel-inventory", { method: "POST" });
+    } catch(e) {}
+    onCancel();
   };
+
+  useEffect(() => {
+    let isCancelled = false;
+    const runSync = async () => {
+      setStatus("running");
+      setStep(0);
+      try {
+        const timer1 = setTimeout(() => { if (!isCancelled) setStep(1); }, 1500); 
+        const timer2 = setTimeout(() => { if (!isCancelled) setStep(2); }, 12000); 
+        const timer3 = setTimeout(() => { if (!isCancelled) setStep(3); }, 35000); 
+
+        const res = await fetch("/api/update-inventory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rootId: "1542391004", maxRows: null, username, password })
+        });
+        
+        const data = await res.json();
+        
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+        
+        if (!res.ok) {
+           throw new Error(data.error || "Falha na sincronização com o Confluence");
+        }
+        
+        if (isCancelled) return;
+
+        setStep(4);
+        setStatus("success");
+        await new Promise(r => setTimeout(r, 1500));
+        if (!isCancelled) onComplete();
+      } catch (err: any) {
+        if (isCancelled) return;
+        setStatus("error");
+        setErrorMsg(err.message || "Erro desconhecido");
+      }
+    };
+    runSync();
+    return () => {
+      isCancelled = true;
+    };
+  }, [username, password, onComplete]);
 
   return (
     <motion.div 
@@ -647,7 +733,7 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
         
         <div className="flex flex-col items-center text-center">
           <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-8 relative">
-            {(status === "running" || status === "idle") && <Loader2 className={`w-10 h-10 text-bradesco-red ${status === "running" ? "animate-spin" : ""}`} />}
+            {status === "running" && <Loader2 className="w-10 h-10 text-bradesco-red animate-spin" />}
             {status === "success" && <CheckCircle2 className="w-10 h-10 text-green-500" />}
             {status === "error" && <AlertTriangle className="w-10 h-10 text-red-500" />}
           </div>
@@ -656,48 +742,21 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
             Verificando Base de Conhecimento
           </h2>
           <p className="text-gray-500 font-medium mb-10 max-w-md">
-            {status === "error" ? "Não foi possível concluir a verificação." : status === "idle" ? "Insira suas credenciais do Confluence para atualizar a base de conhecimento." : "Este processo garante as definições mais recentes. Não feche a janela."}
+            {status === "error" ? "Não foi possível concluir a verificação." : "Este processo garante as definições mais recentes. Não feche a janela."}
           </p>
 
-          {status === "idle" && (
-            <div className="w-full max-w-sm space-y-4 mb-8 text-left">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Usuário (Ex: i462211)</label>
-                <input 
-                  type="text" 
-                  value={username} 
-                  onChange={(e) => setUsername(e.target.value)} 
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bradesco-red focus:border-bradesco-red outline-none"
-                  placeholder="Seu usuário de rede"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Senha</label>
-                <input 
-                  type="password" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bradesco-red focus:border-bradesco-red outline-none"
-                  placeholder="Sua senha corporativa"
-                />
-              </div>
-            </div>
-          )}
-
-          {status !== "idle" && (
-            <div className="w-full space-y-4 mb-10 text-left">
-              {steps.map((text, idx) => (
-                <div key={idx} className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${step === idx ? 'bg-red-50 border border-red-100' : step > idx ? 'bg-gray-50' : 'opacity-40'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${step > idx ? 'bg-green-100 text-green-600' : step === idx && status === 'error' ? 'bg-red-100 text-red-600' : step === idx ? 'bg-white shadow-sm text-bradesco-red' : 'bg-gray-100 text-gray-400'}`}>
-                    {step > idx ? <Check className="w-4 h-4" /> : step === idx && status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : step === idx && status === "error" ? <X className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current" />}
-                  </div>
-                  <span className={`text-sm font-semibold ${step >= idx ? 'text-gray-900' : 'text-gray-400'}`}>
-                    {text}
-                  </span>
+          <div className="w-full space-y-4 mb-10 text-left">
+            {steps.map((text, idx) => (
+              <div key={idx} className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${step === idx ? 'bg-red-50 border border-red-100' : step > idx ? 'bg-gray-50' : 'opacity-40'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${step > idx ? 'bg-green-100 text-green-600' : step === idx && status === 'error' ? 'bg-red-100 text-red-600' : step === idx ? 'bg-white shadow-sm text-bradesco-red' : 'bg-gray-100 text-gray-400'}`}>
+                  {step > idx ? <Check className="w-4 h-4" /> : step === idx && status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : step === idx && status === "error" ? <X className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current" />}
                 </div>
-              ))}
-            </div>
-          )}
+                <span className={`text-sm font-semibold ${step >= idx ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {text}
+                </span>
+              </div>
+            ))}
+          </div>
 
           {status === "error" && (
             <div className="w-full p-4 bg-red-50 text-red-700 text-sm rounded-2xl mb-8 font-medium border border-red-100">
@@ -706,23 +765,15 @@ const SyncScreen = ({ onComplete, onCancel }: { onComplete: () => void, onCancel
           )}
 
           <div className="flex flex-col gap-3">
-             {status === "idle" && (
-               <button 
-                 onClick={handleStartSync}
-                 className="px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider bg-bradesco-red text-white hover:bg-black w-full"
-               >
-                 Iniciar Sincronização
-               </button>
-             )}
              <button 
-               onClick={onCancel}
+               onClick={status === "running" ? handleCancelAsync : onCancel}
                className={`px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider ${
-                 status === "error" || status === "idle"
+                 status === "error"
                    ? "bg-gray-100 text-gray-700 hover:bg-gray-200" 
                    : "bg-red-50 text-bradesco-red hover:bg-red-100"
                }`}
              >
-               {status === "error" || status === "idle" ? "Voltar para a aplicação" : "Cancelar Sincronização"}
+               {status === "error" ? "Voltar para a aplicação" : "Cancelar Sincronização"}
              </button>
           </div>
         </div>
@@ -741,7 +792,8 @@ export default function App() {
   const [results, setResults] = useState<Artifact[]>([]);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
-  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "syncing">("initial");
+  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing">("initial");
+  const [syncCredentials, setSyncCredentials] = useState({ username: "", password: "" });
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [tableFilter, setTableFilter] = useState("");
@@ -879,7 +931,7 @@ export default function App() {
     ];
 
     if (syncIntents.some(intent => normalizedQ.includes(normalizar(intent)))) {
-      setAppState("syncing");
+      setAppState("auth");
       return;
     }
 
@@ -1194,8 +1246,19 @@ export default function App() {
   return (
     <main className="app">
       <AnimatePresence>
+        {appState === 'auth' && (
+          <AuthScreen 
+            onCancel={() => { setAppState('initial'); setQuery(''); }} 
+            onLogin={(u, p) => {
+              setSyncCredentials({ username: u, password: p });
+              setAppState('syncing');
+            }}
+          />
+        )}
         {appState === 'syncing' && (
           <SyncScreen 
+            username={syncCredentials.username}
+            password={syncCredentials.password}
             onCancel={() => { setAppState('initial'); setQuery(''); }} 
             onComplete={() => {
               const now = new Date().toLocaleString('pt-BR');
@@ -1228,11 +1291,6 @@ export default function App() {
               <h1 className="brand-text text-2xl font-black tracking-tight text-gray-900 group-hover:text-red-600 transition-colors">
                 Hub de Artefatos
               </h1>
-              {lastSync && (
-                <span className="text-[9px] font-bold text-gray-400 tracking-wider">
-                  ÚLTIMA SYNC: {lastSync}
-                </span>
-              )}
             </div>
             
             {appState !== "initial" && appState !== "decision" && !loading && (
@@ -2254,8 +2312,15 @@ export default function App() {
 
       {/* Static Footer */}
       <footer className="w-full px-8 py-4 bg-white/30 backdrop-blur-md border-t border-gray-200 flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-[#B0B0B0]">
-        <div className="normal-case">desenvolvido por: lucas.doliveira@bradesco.com.br</div>
-        <div>Salla.Mkt beta V1.0.0</div>
+        <div className="flex flex-col gap-1 text-left">
+          <div className="normal-case">desenvolvido por: lucas.doliveira@bradesco.com.br</div>
+          {lastSync && (
+            <div className="text-[9px] font-medium opacity-70 normal-case">
+              Última sincronização: {lastSync}
+            </div>
+          )}
+        </div>
+        <div>Salla.Mkt beta V2.0.0</div>
       </footer>
 
       {/* Export Modal */}

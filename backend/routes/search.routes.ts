@@ -6,9 +6,20 @@
  */
 import { Router } from "express";
 import { getInventoryData, calculateInsights, searchArtifacts } from "../services/inventory.service.js";
-import { runCollection } from "../confluenceClient.js";
+import { runCollection, abortCollection } from "../confluenceClient.js";
 
 const router = Router();
+
+router.post("/cancel-inventory", async (req, res) => {
+  console.log(`[API] POST /api/cancel-inventory - Solicitação de cancelamento recebida.`);
+  try {
+    await abortCollection();
+    res.json({ success: true, message: "Cancelamento solicitado" });
+  } catch (error: any) {
+    console.error(`[API] Erro ao cancelar: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 /**
  * ROTA: GET /api/inventario

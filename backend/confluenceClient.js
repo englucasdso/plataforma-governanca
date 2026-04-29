@@ -20,6 +20,8 @@ async function exportToJSON(data) {
   console.log(`[exportToJSON] Inventário atualizado no backend com ${data.length} artefatos.`);
 }
 
+let globalContext = null;
+
 async function buildInventory(rootPageId, maxReqRows = null, username, password) {
   console.log(`[buildInventory] Iniciando mapeamento da estrutura (rootId: ${rootPageId})`);
   
@@ -41,8 +43,11 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
     ]
   });
 
+  globalContext = context;
+
   // O launchPersistentContext já cria uma aba padrão
   const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+
   
   try {
     const ROOT_URL = `${CONFLUENCE_BASE_URL}/pages/viewpage.action?pageId=${rootPageId}`;
@@ -341,6 +346,18 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
 
 let isCollecting = false;
 
+async function abortCollection() {
+  if (isCollecting && globalContext) {
+    console.log('[abortCollection] Cancelamento solicitado pelo usuário. Fechando o navegador...');
+    try {
+      await globalContext.close();
+    } catch(e) {}
+    globalContext = null;
+    isCollecting = false;
+    console.log('[abortCollection] Mapeamento cancelado com sucesso.');
+  }
+}
+
 async function runCollection(rootPageId, maxRows, username, password) {
   console.log(`[runCollection] INÍCIO da execução - Root ID: ${rootPageId}, Max Rows: ${maxRows}`);
   if (isCollecting) {
@@ -359,6 +376,11 @@ async function runCollection(rootPageId, maxRows, username, password) {
     console.log(`[runCollection] FIM da execução com sucesso.`);
     return inventory;
   } catch (error) {
+    if (error.message && (error.message.includes('Target closed') || error.message.includes('Target page, context or browser has been closed') || error.message.includes('browser has disconnected'))) {
+      const msg = '[runCollection] Execução cancelada durante o processamento. O navegador foi fechado.';
+      console.error(msg);
+      throw new Error(msg);
+    }
     console.error(`[runCollection] Erro capturado na coleta: ${error.message}`);
     throw error;
   } finally {
@@ -367,5 +389,6 @@ async function runCollection(rootPageId, maxRows, username, password) {
 }
 
 export {
-  runCollection
+  runCollection,
+  abortCollection
 };
