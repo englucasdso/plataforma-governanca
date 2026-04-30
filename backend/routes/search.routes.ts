@@ -6,9 +6,13 @@
  */
 import { Router } from "express";
 import { getInventoryData, calculateInsights, searchArtifacts } from "../services/inventory.service.js";
-import { runCollection, abortCollection } from "../confluenceClient.js";
+import { runCollection, abortCollection, getSyncStatus } from "../confluenceClient.js";
 
 const router = Router();
+
+router.get("/sync-status", (req, res) => {
+  res.json(getSyncStatus());
+});
 
 router.post("/cancel-inventory", async (req, res) => {
   console.log(`[API] POST /api/cancel-inventory - Solicitação de cancelamento recebida.`);
@@ -53,18 +57,17 @@ router.post("/update-inventory", async (req, res) => {
     return res.status(400).json({ error: "ID root da página é obrigatório" });
   }
   
-  const startTime = Date.now();
-  console.log(`[API] Chamando runCollection()`);
-  try {
-    const data = await runCollection(rootId, maxRows || null, username, password);
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`[API] runCollection() retornou sucesso. Quantidade: ${data.length}. Duração: ${duration}s`);
-    res.json({ success: true, count: data.length });
-  } catch (error: any) {
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.error(`[API] runCollection() retornou erro após ${duration}s: ${error.message}`);
-    res.status(500).json({ error: error.message });
+  const status = getSyncStatus();
+  if (status.status === 'running') {
+    return res.status(400).json({ error: "Sincronização já em andamento" });
   }
+
+  // Start in background without awaiting
+  runCollection(rootId, maxRows || null, username, password).catch(err => {
+    console.error(`[API] runCollection() disparado em background retornou erro: ${err.message}`);
+  });
+  
+  res.json({ success: true, message: "Sincronização iniciada em background" });
 });
 
 /**

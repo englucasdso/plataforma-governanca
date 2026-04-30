@@ -657,127 +657,86 @@ const AuthScreen = ({ onLogin, onCancel }: { onLogin: (u: string, p: string) => 
   );
 };
 
-const SyncScreen = ({ username, password, onComplete, onCancel }: { username: string, password: string, onComplete: () => void, onCancel: () => void }) => {
-  const [step, setStep] = useState(0);
-  const [status, setStatus] = useState<"running" | "success" | "error">("running");
-  const [errorMsg, setErrorMsg] = useState("");
+const SyncProgressPopup = ({ lastSync, onLastSyncChange }: { lastSync: string | null, onLastSyncChange: (v: string) => void }) => {
+  const [syncState, setSyncState] = useState<any>({ status: 'idle' });
+  const [closed, setClosed] = useState(false);
 
-  const steps = [
-    "Conectando ao ambiente de documentação...",
-    "Mapeando estrutura de produtos...",
-    "Organizando artefatos e métricas...",
-    "Atualizando base de conhecimento local...",
-    "Concluído"
-  ];
+  useEffect(() => {
+    let interval = setInterval(async () => {
+       try {
+         const res = await fetch('/api/sync-status');
+         const data = await res.json();
+         setSyncState(data);
+         if (data.status === 'success' && data.lastSync && data.lastSync !== lastSync) {
+            onLastSyncChange(data.lastSync);
+            localStorage.setItem('last_sync', data.lastSync);
+         }
+       } catch (e) {}
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [lastSync, onLastSyncChange]);
 
   const handleCancelAsync = async () => {
     try {
       await fetch("/api/cancel-inventory", { method: "POST" });
     } catch(e) {}
-    onCancel();
+    setClosed(true);
   };
 
   useEffect(() => {
-    let isCancelled = false;
-    const runSync = async () => {
-      setStatus("running");
-      setStep(0);
-      try {
-        const timer1 = setTimeout(() => { if (!isCancelled) setStep(1); }, 1500); 
-        const timer2 = setTimeout(() => { if (!isCancelled) setStep(2); }, 12000); 
-        const timer3 = setTimeout(() => { if (!isCancelled) setStep(3); }, 35000); 
+    if (syncState.status === 'idle') {
+      setClosed(false);
+    }
+  }, [syncState.status]);
 
-        const res = await fetch("/api/update-inventory", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rootId: "1542391004", maxRows: null, username, password })
-        });
-        
-        const data = await res.json();
-        
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-        
-        if (!res.ok) {
-           throw new Error(data.error || "Falha na sincronização com o Confluence");
-        }
-        
-        if (isCancelled) return;
-
-        setStep(4);
-        setStatus("success");
-        await new Promise(r => setTimeout(r, 1500));
-        if (!isCancelled) onComplete();
-      } catch (err: any) {
-        if (isCancelled) return;
-        setStatus("error");
-        setErrorMsg(err.message || "Erro desconhecido");
-      }
-    };
-    runSync();
-    return () => {
-      isCancelled = true;
-    };
-  }, [username, password, onComplete]);
+  if (syncState.status === 'idle' || closed) return null;
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-md"
+      initial={{ y: 50, opacity: 0 }} 
+      animate={{ y: 0, opacity: 1 }} 
+      exit={{ y: 50, opacity: 0 }}
+      className={`fixed bottom-6 right-6 shadow-2xl rounded-2xl p-5 w-80 z-50 border ${syncState.status === 'success' ? 'bg-green-50 border-green-100' : syncState.status === 'error' ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}
     >
-      <div className="bg-white rounded-[40px] p-12 max-w-2xl w-full shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-bradesco-gradient" />
-        
-        <div className="flex flex-col items-center text-center">
-          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-8 relative">
-            {status === "running" && <Loader2 className="w-10 h-10 text-bradesco-red animate-spin" />}
-            {status === "success" && <CheckCircle2 className="w-10 h-10 text-green-500" />}
-            {status === "error" && <AlertTriangle className="w-10 h-10 text-red-500" />}
-          </div>
-
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
-            Verificando Base de Conhecimento
-          </h2>
-          <p className="text-gray-500 font-medium mb-10 max-w-md">
-            {status === "error" ? "Não foi possível concluir a verificação." : "Este processo garante as definições mais recentes. Não feche a janela."}
-          </p>
-
-          <div className="w-full space-y-4 mb-10 text-left">
-            {steps.map((text, idx) => (
-              <div key={idx} className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${step === idx ? 'bg-red-50 border border-red-100' : step > idx ? 'bg-gray-50' : 'opacity-40'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${step > idx ? 'bg-green-100 text-green-600' : step === idx && status === 'error' ? 'bg-red-100 text-red-600' : step === idx ? 'bg-white shadow-sm text-bradesco-red' : 'bg-gray-100 text-gray-400'}`}>
-                  {step > idx ? <Check className="w-4 h-4" /> : step === idx && status === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : step === idx && status === "error" ? <X className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-current" />}
-                </div>
-                <span className={`text-sm font-semibold ${step >= idx ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {text}
-                </span>
+        <div className="flex flex-col gap-3">
+           <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 {syncState.status === 'running' && <Loader2 className="w-5 h-5 text-bradesco-red animate-spin" />}
+                 {syncState.status === 'success' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                 {syncState.status === 'error' && <AlertTriangle className="w-5 h-5 text-red-500" />}
+                 <span className={`text-sm font-bold ${syncState.status === 'success' ? 'text-green-700' : syncState.status === 'error' ? 'text-red-700' : 'text-gray-900'}`}>
+                   {syncState.status === 'running' ? 'Sincronizando...' : syncState.status === 'success' ? 'Concluído' : 'Erro na sincronização'}
+                 </span>
               </div>
-            ))}
-          </div>
+              {(syncState.status === 'success' || syncState.status === 'error') && (
+                 <button onClick={() => setClosed(true)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                 </button>
+              )}
+           </div>
 
-          {status === "error" && (
-            <div className="w-full p-4 bg-red-50 text-red-700 text-sm rounded-2xl mb-8 font-medium border border-red-100">
-              {errorMsg}
-            </div>
-          )}
+           {(syncState.status === 'running' || syncState.status === 'error') && (
+              <p className={`text-xs ${syncState.status === 'error' ? 'text-red-600' : 'text-gray-500'}`}>
+                 {syncState.error || syncState.message || 'Processando...'}
+              </p>
+           )}
 
-          <div className="flex flex-col gap-3">
-             <button 
-               onClick={handleCancelAsync}
-               className={`px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider ${
-                 status === "error"
-                   ? "bg-gray-100 text-gray-700 hover:bg-gray-200" 
-                   : "bg-red-50 text-bradesco-red hover:bg-red-100"
-               }`}
-             >
-               {status === "error" ? "Voltar para a aplicação" : "Cancelar Sincronização"}
-             </button>
-          </div>
+           {syncState.status === 'running' && (
+              <div className="flex flex-col gap-1.5 mt-2">
+                 <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <motion.div 
+                       className="h-full bg-bradesco-red"
+                       initial={{ width: "0%" }}
+                       animate={{ width: "100%" }}
+                       transition={{ duration: 2, repeat: Infinity }}
+                    />
+                 </div>
+                 <button onClick={handleCancelAsync} className="text-[10px] text-gray-400 hover:text-bradesco-red text-left font-bold uppercase tracking-wider mt-1">
+                   Cancelar
+                 </button>
+              </div>
+           )}
         </div>
-      </div>
     </motion.div>
   );
 };
@@ -792,7 +751,7 @@ export default function App() {
   const [results, setResults] = useState<Artifact[]>([]);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
-  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing">("initial");
+  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth">("initial");
   const [syncCredentials, setSyncCredentials] = useState({ username: "", password: "" });
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -1249,24 +1208,17 @@ export default function App() {
         {appState === 'auth' && (
           <AuthScreen 
             onCancel={() => { setAppState('initial'); setQuery(''); }} 
-            onLogin={(u, p) => {
-              setSyncCredentials({ username: u, password: p });
-              setAppState('syncing');
+            onLogin={async (u, p) => {
+              setAppState('initial');
+              setQuery('');
+              try {
+                await fetch("/api/update-inventory", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ rootId: "1542391004", maxRows: null, username: u, password: p })
+                });
+              } catch(e) {}
             }}
-          />
-        )}
-        {appState === 'syncing' && (
-          <SyncScreen 
-            username={syncCredentials.username}
-            password={syncCredentials.password}
-            onCancel={() => { setAppState('initial'); setQuery(''); }} 
-            onComplete={() => {
-              const now = new Date().toLocaleString('pt-BR');
-              localStorage.setItem('last_sync', now);
-              setLastSync(now);
-              setQuery('base completa');
-              executeSearch('base completa');
-            }} 
           />
         )}
       </AnimatePresence>
@@ -2322,6 +2274,7 @@ export default function App() {
         </div>
         <div>Salla.Mkt beta V2.0.0</div>
       </footer>
+      <SyncProgressPopup lastSync={lastSync} onLastSyncChange={(v) => { setLastSync(v); if (appState !== 'initial') { executeSearch('base completa'); } }} />
 
       {/* Export Modal */}
       <AnimatePresence>
