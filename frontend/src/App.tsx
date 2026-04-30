@@ -46,6 +46,8 @@ import {
 import { fetchInventory, searchContent } from "@/services/api";
 import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "@/types";
 import { normalizar, formatDataBR, getFilteredInsights } from "@/utils/helpers";
+import { CatalogScreen } from "./features/catalog/CatalogScreen";
+import { EventCaptureScreen } from "./features/event-capture/EventCaptureScreen";
 
 const INITIAL_USERS: UserType[] = [
   {
@@ -523,11 +525,11 @@ const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: User
             className="w-16 h-16 rounded-3xl mx-auto mb-6 flex items-center justify-center text-white shadow-xl shadow-red-200"
             style={{ background: 'linear-gradient(90deg, #7D046D 0%, #cc092f 100%)' }}
           >
-            <Landmark className="w-8 h-8" />
+            <Shield className="w-8 h-8" />
           </div>
-          <h1 className="text-[26px] font-black text-gray-900 mb-1 tracking-tight">Hub de Artefatos</h1>
+          <h1 className="text-[26px] font-black text-gray-900 mb-1 tracking-tight">Plataforma de Governança</h1>
           <div className="flex flex-col items-center gap-3">
-            <p className="text-gray-400 text-sm font-medium">Visualização e análise do ecossistema de mensuração</p>
+            <p className="text-gray-400 text-sm font-medium">Ecossistema central de governança e mensuração</p>
           </div>
         </div>
 
@@ -730,7 +732,7 @@ export default function App() {
   const [results, setResults] = useState<Artifact[]>([]);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
-  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing">("initial");
+  const [appState, setAppState] = useState<"catalog" | "initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing" | "events_capture">("catalog");
   const [syncCredentials, setSyncCredentials] = useState({ username: "", password: "" });
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -1269,34 +1271,31 @@ export default function App() {
         {/* Header */}
         <header className="flex justify-between items-center mb-12">
           <div className="flex items-center gap-8 flex-1">
-            <div className="flex flex-col cursor-pointer group" onClick={resetSearch}>
+            <div className="flex flex-col cursor-pointer group" onClick={() => appState === 'catalog' ? null : resetSearch()}>
               <h1 className="brand-text text-2xl font-black tracking-tight text-gray-900 group-hover:text-red-600 transition-colors">
-                Hub de Artefatos
+                {appState === 'catalog' ? 'Plataforma de Governança' : appState === 'events_capture' ? 'Validação de Tracking' : 'Hub de Artefatos'}
               </h1>
             </div>
-            
-            {appState !== "initial" && appState !== "decision" && !loading && (
-              <div className="relative flex-1 max-w-xl group">
-                <input 
-                  type="text" 
-                  className="w-full px-6 py-2.5 bg-gray-50 border border-transparent rounded-full text-sm focus:outline-none focus:bg-white focus:border-bradesco-red focus:ring-4 focus:ring-bradesco-red/10 transition-all font-medium"
-                  placeholder="Pesquisar novamente..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && executeSearch()}
-                />
-              </div>
-            )}
           </div>
 
           <div className="flex items-center gap-4 text-sm font-medium text-gray-500 shrink-0">
-            {appState !== "initial" && appState !== "decision" && (
+            {appState !== "catalog" && (
+              <button 
+                onClick={() => setAppState("catalog")}
+                className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-100 shadow-sm hover:border-bradesco-red hover:text-bradesco-red transition-all font-bold text-xs uppercase tracking-wider h-10"
+              >
+                <LayoutList className="w-4 h-4" />
+                Catálogo
+              </button>
+            )}
+
+            {appState !== "initial" && appState !== "decision" && appState !== "catalog" && appState !== "events_capture" && (
               <button 
                 onClick={resetSearch}
                 className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-100 shadow-sm hover:border-bradesco-red hover:text-bradesco-red transition-all font-bold text-xs uppercase tracking-wider h-10"
               >
                 <ArrowRight className="w-3.5 h-3.5 rotate-180" />
-                Voltar ao início
+                Voltar ao buscador
               </button>
             )}
             
@@ -1361,6 +1360,24 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        {appState === "catalog" && (
+          <CatalogScreen 
+            userName={currentUser.name.split(' ')[0]} 
+            onNavigate={(feature) => {
+              if (feature === 'hub') {
+                setAppState("initial");
+                setQuery("");
+              } else {
+                setAppState(feature as any);
+              }
+            }} 
+          />
+        )}
+
+        {appState === "events_capture" && (
+          <EventCaptureScreen />
+        )}
 
         {/* Hero Section */}
         <section className={`hero flex-col items-center justify-start pt-8 ${appState !== "initial" ? "hidden" : ""}`}>
@@ -1449,7 +1466,7 @@ export default function App() {
         </section>
 
         {/* Content Section */}
-        <section className={`content ${appState === "initial" ? "hidden" : ""}`}>
+        <section className={`content ${["initial", "catalog", "events_capture"].includes(appState) ? "hidden" : ""}`}>
           <NavigationModes />
           
           {/* Decision / Loading Area */}
