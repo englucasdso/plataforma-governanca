@@ -657,86 +657,65 @@ const AuthScreen = ({ onLogin, onCancel }: { onLogin: (u: string, p: string) => 
   );
 };
 
-const SyncProgressPopup = ({ lastSync, onLastSyncChange }: { lastSync: string | null, onLastSyncChange: (v: string) => void }) => {
-  const [syncState, setSyncState] = useState<any>({ status: 'idle' });
-  const [closed, setClosed] = useState(false);
-
-  useEffect(() => {
-    let interval = setInterval(async () => {
-       try {
-         const res = await fetch('/api/sync-status');
-         const data = await res.json();
-         setSyncState(data);
-         if (data.status === 'success' && data.lastSync && data.lastSync !== lastSync) {
-            onLastSyncChange(data.lastSync);
-            localStorage.setItem('last_sync', data.lastSync);
-         }
-       } catch (e) {}
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [lastSync, onLastSyncChange]);
-
-  const handleCancelAsync = async () => {
-    try {
-      await fetch("/api/cancel-inventory", { method: "POST" });
-    } catch(e) {}
-    setClosed(true);
-  };
-
-  useEffect(() => {
-    if (syncState.status === 'idle') {
-      setClosed(false);
-    }
-  }, [syncState.status]);
-
-  if (syncState.status === 'idle' || closed) return null;
+const SyncWidget = ({ job, onCancel }: { job: any, onCancel: () => void }) => {
+  if (!job.active) return null;
+  
+  const stepsText = [
+    "Conectando ao ambiente de documentação...",
+    "Mapeando estrutura de produtos...",
+    "Organizando artefatos e métricas...",
+    "Atualizando base de conhecimento local...",
+    "Concluído"
+  ];
+  
+  const percentage = Math.min(100, Math.round(((job.step + 1) / 5) * 100));
 
   return (
     <motion.div 
-      initial={{ y: 50, opacity: 0 }} 
-      animate={{ y: 0, opacity: 1 }} 
-      exit={{ y: 50, opacity: 0 }}
-      className={`fixed bottom-6 right-6 shadow-2xl rounded-2xl p-5 w-80 z-50 border ${syncState.status === 'success' ? 'bg-green-50 border-green-100' : syncState.status === 'error' ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}
+      initial={{ opacity: 0, y: 50, scale: 0.9 }} 
+      animate={{ opacity: 1, y: 0, scale: 1 }} 
+      exit={{ opacity: 0, y: 50, scale: 0.9 }}
+      className="fixed bottom-6 right-6 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-80 flex flex-col gap-3 overflow-hidden"
     >
-        <div className="flex flex-col gap-3">
-           <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                 {syncState.status === 'running' && <Loader2 className="w-5 h-5 text-bradesco-red animate-spin" />}
-                 {syncState.status === 'success' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                 {syncState.status === 'error' && <AlertTriangle className="w-5 h-5 text-red-500" />}
-                 <span className={`text-sm font-bold ${syncState.status === 'success' ? 'text-green-700' : syncState.status === 'error' ? 'text-red-700' : 'text-gray-900'}`}>
-                   {syncState.status === 'running' ? 'Sincronizando...' : syncState.status === 'success' ? 'Concluído' : 'Erro na sincronização'}
-                 </span>
-              </div>
-              {(syncState.status === 'success' || syncState.status === 'error') && (
-                 <button onClick={() => setClosed(true)} className="text-gray-400 hover:text-gray-600">
-                    <X className="w-4 h-4" />
-                 </button>
-              )}
-           </div>
-
-           {(syncState.status === 'running' || syncState.status === 'error') && (
-              <p className={`text-xs ${syncState.status === 'error' ? 'text-red-600' : 'text-gray-500'}`}>
-                 {syncState.error || syncState.message || 'Processando...'}
-              </p>
-           )}
-
-           {syncState.status === 'running' && (
-              <div className="flex flex-col gap-1.5 mt-2">
-                 <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div 
-                       className="h-full bg-bradesco-red"
-                       initial={{ width: "0%" }}
-                       animate={{ width: "100%" }}
-                       transition={{ duration: 2, repeat: Infinity }}
-                    />
-                 </div>
-                 <button onClick={handleCancelAsync} className="text-[10px] text-gray-400 hover:text-bradesco-red text-left font-bold uppercase tracking-wider mt-1">
-                   Cancelar
-                 </button>
-              </div>
-           )}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
+        <div 
+          className={`h-full transition-all duration-500 ease-out ${job.status === 'error' ? 'bg-red-500' : job.status === 'success' ? 'bg-green-500' : 'bg-bradesco-red'}`} 
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      
+      <div className="flex items-start justify-between mt-1">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
+             {job.status === "running" && <Loader2 className="w-5 h-5 text-bradesco-red animate-spin" />}
+             {job.status === "success" && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+             {job.status === "error" && <AlertTriangle className="w-5 h-5 text-red-500" />}
+          </div>
+          <div className="flex flex-col flex-1">
+            <span className="font-bold text-gray-900 text-sm">
+              {job.status === "running" ? "Sincronizando..." : job.status === "success" ? "Concluído" : "Falha na Sincronização"}
+            </span>
+            <span className="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">
+              {job.status === "error" ? "Não foi possível concluir" : stepsText[job.step] || `${percentage}% concluído`}
+            </span>
+          </div>
         </div>
+      </div>
+      
+      {job.status === "error" && (
+        <div className="text-[10px] text-red-600 font-medium bg-red-50 p-2 rounded-lg mt-1">
+          {job.errorMsg}
+        </div>
+      )}
+      
+      {job.status === "running" && (
+        <button 
+          onClick={onCancel}
+          className="text-[10px] font-bold text-gray-400 hover:text-red-500 transition-colors w-full text-left flex items-center gap-1.5 px-1 py-1 mt-1 uppercase tracking-wider"
+        >
+          <X className="w-3 h-3" /> Cancelar processo
+        </button>
+      )}
     </motion.div>
   );
 };
@@ -751,7 +730,7 @@ export default function App() {
   const [results, setResults] = useState<Artifact[]>([]);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
-  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth">("initial");
+  const [appState, setAppState] = useState<"initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing">("initial");
   const [syncCredentials, setSyncCredentials] = useState({ username: "", password: "" });
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -762,6 +741,60 @@ export default function App() {
   const [expandedInventoryRows, setExpandedInventoryRows] = useState<Set<string>>(new Set());
   const [insightFilters, setInsightFilters] = useState({ ga: 'all', produto: 'all', subproduto: 'all' });
   const [inventoryViewMode, setInventoryViewMode] = useState<'table' | 'panel'>('table');
+  
+  const [syncJob, setSyncJob] = useState<{
+    active: boolean;
+    step: number; 
+    status: "running" | "success" | "error";
+    errorMsg: string;
+  }>({ active: false, step: 0, status: "running", errorMsg: "" });
+
+  const startBackgroundSync = async (u: string, p: string) => {
+    setSyncJob({ active: true, step: 0, status: "running", errorMsg: "" });
+
+    const timer1 = setTimeout(() => setSyncJob(s => s.status === 'running' ? {...s, step: 1} : s), 1500); 
+    const timer2 = setTimeout(() => setSyncJob(s => s.status === 'running' ? {...s, step: 2} : s), 12000); 
+    const timer3 = setTimeout(() => setSyncJob(s => s.status === 'running' ? {...s, step: 3} : s), 35000); 
+
+    try {
+      const res = await fetch("/api/update-inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rootId: "1542391004", maxRows: null, username: u, password: p })
+      });
+      
+      const data = await res.json();
+      
+      clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3);
+      
+      if (!res.ok) {
+         throw new Error(data.error || "Falha na sincronização");
+      }
+      
+      setSyncJob(s => ({ ...s, step: 4, status: "success" }));
+      const now = new Date().toLocaleString('pt-BR');
+      localStorage.setItem('last_sync', now);
+      setLastSync(now);
+      
+      setTimeout(() => {
+        setSyncJob(s => ({ ...s, active: false }));
+      }, 10000);
+    } catch (err: any) {
+      clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3);
+      setSyncJob(s => ({ ...s, status: "error", errorMsg: err.message || "Erro desconhecido" }));
+      setTimeout(() => {
+        setSyncJob(s => ({ ...s, active: false }));
+      }, 10000);
+    }
+  };
+
+  const cancelSyncJob = async () => {
+    try {
+      await fetch("/api/cancel-inventory", { method: "POST" });
+    } catch(e) {}
+    setSyncJob({ active: false, step: 0, status: "running", errorMsg: "" });
+  };
+
   
   // Advanced Inventory State
   const [inventoryFilters, setInventoryFilters] = useState({
@@ -1208,19 +1241,16 @@ export default function App() {
         {appState === 'auth' && (
           <AuthScreen 
             onCancel={() => { setAppState('initial'); setQuery(''); }} 
-            onLogin={async (u, p) => {
+            onLogin={(u, p) => {
               setAppState('initial');
               setQuery('');
-              try {
-                await fetch("/api/update-inventory", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ rootId: "1542391004", maxRows: null, username: u, password: p })
-                });
-              } catch(e) {}
+              startBackgroundSync(u, p);
             }}
           />
         )}
+      </AnimatePresence>
+      <AnimatePresence>
+        <SyncWidget job={syncJob} onCancel={cancelSyncJob} />
       </AnimatePresence>
 
       <AnimatePresence>
@@ -2274,7 +2304,6 @@ export default function App() {
         </div>
         <div>Salla.Mkt beta V2.0.0</div>
       </footer>
-      <SyncProgressPopup lastSync={lastSync} onLastSyncChange={(v) => { setLastSync(v); if (appState !== 'initial') { executeSearch('base completa'); } }} />
 
       {/* Export Modal */}
       <AnimatePresence>

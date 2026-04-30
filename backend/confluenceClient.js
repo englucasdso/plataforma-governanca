@@ -60,7 +60,6 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
 
     if (currentUrl.includes('login.action') || currentUrl.includes('dologin.action') || currentUrl.includes('login')) {
       console.log('--- AUTENTICAÇÃO NECESSÁRIA ---');
-      syncState.message = 'Autenticando no Confluence...';
       if (!username || !password) {
         throw new Error('Credenciais não fornecidas. Digite seu usuário e senha no frontend.');
       }
@@ -99,13 +98,6 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
     }
 
     console.log(`[buildInventory] Autenticação confirmada na URL. Injetando script de extração no browser...`);
-    syncState.message = 'Mapeando estrutura de páginas...';
-
-    // Injetar função de progresso no contexto (Window)
-    await context.exposeFunction('reportProgress', (count) => {
-       syncState.progress = count;
-       syncState.message = `Processados: ${count} artefatos`;
-    });
 
     // Injeta o script antigo que roda com `fetch` e `DOMParser` *direto na página do usuário*
     const extractedData = await page.evaluate(async ({ rootId, maxRows }) => {
@@ -331,10 +323,6 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           if (allRows.length % 50 === 0) {
              console.log(`Processados: ${allRows.length}`);
           }
-          
-          if (window.reportProgress) {
-             window.reportProgress(allRows.length);
-          }
 
           if (netas.length > 0) {
             await percorrerArvore(page.id, nivel + 1, page.title, trilhaAtual);
@@ -356,103 +344,51 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
   }
 }
 
-let syncState = {
-  status: 'idle', // 'idle' | 'running' | 'success' | 'error'
-  message: '',
-  progress: 0,
-  error: null,
-  lastSync: null
-};
-
-export function getSyncStatus() {
-  return syncState;
-}
-
-function resetSyncState() {
-  if (syncState.status !== 'running') {
-    syncState = {
-      status: 'idle',
-      message: '',
-      progress: 0,
-      error: null,
-      lastSync: syncState.lastSync
-    };
-  }
-}
+let isCollecting = false;
 
 async function abortCollection() {
-  console.log('[abortCollection] Requisição de cancelamento recebida...');
-  
-  if (globalContext) {
-    console.log('[abortCollection] Fechando o navegador/contexto atual...');
+  if (isCollecting && globalContext) {
+    console.log('[abortCollection] Cancelamento solicitado pelo usuário. Fechando o navegador...');
     try {
       await globalContext.close();
-      console.log('[abortCollection] Navegador fechado com sucesso.');
-    } catch(e) {
-      console.error('[abortCollection] Erro ao fechar navegador:', e.message);
-    }
+    } catch(e) {}
     globalContext = null;
-  } else {
-    console.log('[abortCollection] Nenhum navegador/contexto ativo para fechar no momento.');
+    isCollecting = false;
+    console.log('[abortCollection] Mapeamento cancelado com sucesso.');
   }
-
-  if (syncState.status === 'running') {
-    syncState.status = 'idle';
-    syncState.message = 'Sincronização cancelada.';
-    console.log('[abortCollection] Flag isCollecting resetada para false.');
-  }
-
-  console.log('[abortCollection] Mapeamento cancelado e estado limpo com sucesso (Backend resetado).');
 }
 
 async function runCollection(rootPageId, maxRows, username, password) {
   console.log(`[runCollection] INÍCIO da execução - Root ID: ${rootPageId}, Max Rows: ${maxRows}`);
-  if (syncState.status === 'running') {
+  if (isCollecting) {
     console.error(`[runCollection] Erro: tentou iniciar, mas já havia uma sincronização em andamento.`);
     throw new Error('A sincronização já está em andamento. Aguarde...');
   }
-  syncState.status = 'running';
-  syncState.progress = 0;
-  syncState.message = 'Iniciando coleta...';
-  syncState.error = null;
+  isCollecting = true;
 
   try {
     console.time('Coleta Confluence V2 Browser Context');
     console.log(`[runCollection] Chamando buildInventory...`);
     const inventory = await buildInventory(rootPageId, maxRows, username, password);
     console.log(`[runCollection] buildInventory concluído. Chamando exportToJSON...`);
-    syncState.message = 'Construindo arquivo final...';
     await exportToJSON(inventory);
     console.timeEnd('Coleta Confluence V2 Browser Context');
     console.log(`[runCollection] FIM da execução com sucesso.`);
-    syncState.status = 'success';
-    syncState.message = 'Sincronização concluída com sucesso!';
-    syncState.lastSync = new Date().toLocaleString('pt-BR');
-    
-    // Clear success message after 15s to go back to idle if needed
-    setTimeout(() => {
-      if (syncState.status === 'success') {
-         syncState.status = 'idle';
-      }
-    }, 15000);
-
     return inventory;
   } catch (error) {
-    syncState.status = 'error';
     if (error.message && (error.message.includes('Target closed') || error.message.includes('Target page, context or browser has been closed') || error.message.includes('browser has disconnected'))) {
       const msg = '[runCollection] Execução cancelada durante o processamento. O navegador foi fechado.';
       console.error(msg);
-      syncState.error = 'Sincronização cancelada pelo usuário.';
       throw new Error(msg);
     }
     console.error(`[runCollection] Erro capturado na coleta: ${error.message}`);
-    syncState.error = error.message;
     throw error;
+  } finally {
+    isCollecting = false;
   }
 }
 
 export {
   runCollection,
-  abortCollection,
-  getSyncStatus
+  abortCollection
 };
