@@ -347,15 +347,27 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
 let isCollecting = false;
 
 async function abortCollection() {
-  if (isCollecting && globalContext) {
-    console.log('[abortCollection] Cancelamento solicitado pelo usuário. Fechando o navegador...');
+  console.log('[abortCollection] Requisição de cancelamento recebida...');
+  
+  if (globalContext) {
+    console.log('[abortCollection] Fechando o navegador/contexto atual...');
     try {
       await globalContext.close();
-    } catch(e) {}
+      console.log('[abortCollection] Navegador fechado com sucesso.');
+    } catch(e) {
+      console.error('[abortCollection] Erro ao fechar navegador:', e.message);
+    }
     globalContext = null;
-    isCollecting = false;
-    console.log('[abortCollection] Mapeamento cancelado com sucesso.');
+  } else {
+    console.log('[abortCollection] Nenhum navegador/contexto ativo para fechar no momento.');
   }
+
+  if (isCollecting) {
+    isCollecting = false;
+    console.log('[abortCollection] Flag isCollecting resetada para false.');
+  }
+
+  console.log('[abortCollection] Mapeamento cancelado e estado limpo com sucesso (Backend resetado).');
 }
 
 async function runCollection(rootPageId, maxRows, username, password) {

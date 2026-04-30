@@ -766,7 +766,7 @@ const SyncScreen = ({ username, password, onComplete, onCancel }: { username: st
 
           <div className="flex flex-col gap-3">
              <button 
-               onClick={status === "running" ? handleCancelAsync : onCancel}
+               onClick={handleCancelAsync}
                className={`px-8 py-3 rounded-full font-bold transition-colors text-sm uppercase tracking-wider ${
                  status === "error"
                    ? "bg-gray-100 text-gray-700 hover:bg-gray-200" 
