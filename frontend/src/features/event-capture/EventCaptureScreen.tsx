@@ -22,10 +22,6 @@ export function EventCaptureScreen() {
         </div>
 
         <div className="glass-card p-8 rounded-[40px] border border-gray-100 flex flex-col items-center justify-center col-span-1 lg:col-span-2 shadow-sm bg-gray-50/50 min-h-[400px]">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-            <Target className="w-8 h-8 text-gray-400" />
-          </div>
-          <p className="text-xl font-bold text-gray-400">Ambiente em desenvolvimento</p>
           <p className="text-sm text-gray-400 mt-3 max-w-md text-center leading-relaxed">
             Aqui será injetado o navegador autenticado e exibido o log de requests de rede em tempo real para auditoria dos pacotes (GA4, Meta, etc).
           </p>

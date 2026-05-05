@@ -64,13 +64,13 @@ export function CatalogScreen({ userName, onNavigate }: CatalogScreenProps) {
             <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                <Target className="w-7 h-7 text-purple-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">Validação de Tracking</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">Hub de Eventos</h3>
             <p className="text-gray-500 leading-relaxed font-medium">
               Valide a captura e roteamento de eventos de conversão no GA4, Meta, TikTok e AppsFlyer através de navegadores autenticados e sessões.
             </p>
           </div>
           <div className="mt-8 flex items-center gap-2 text-sm font-bold text-purple-600 uppercase tracking-wider">
-            Abrir Validação <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
+            Abrir Hub <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
           </div>
         </motion.div>
       </div>

@@ -41,13 +41,15 @@ import {
   RefreshCw,
   Check,
   Loader2,
-  KeyRound
+  KeyRound,
+  Activity
 } from "lucide-react";
 import { fetchInventory, searchContent } from "@/services/api";
 import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "@/types";
 import { normalizar, formatDataBR, getFilteredInsights } from "@/utils/helpers";
 import { CatalogScreen } from "./features/catalog/CatalogScreen";
 import { EventCaptureScreen } from "./features/event-capture/EventCaptureScreen";
+import { HomeScreen } from "./features/home/HomeScreen";
 
 const INITIAL_USERS: UserType[] = [
   {
@@ -732,7 +734,7 @@ export default function App() {
   const [results, setResults] = useState<Artifact[]>([]);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
-  const [appState, setAppState] = useState<"catalog" | "initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing" | "events_capture">("catalog");
+  const [appState, setAppState] = useState<"home" | "catalog" | "initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing" | "events_capture">("initial");
   const [syncCredentials, setSyncCredentials] = useState({ username: "", password: "" });
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -1271,25 +1273,33 @@ export default function App() {
         {/* Header */}
         <header className="flex justify-between items-center mb-12">
           <div className="flex items-center gap-8 flex-1">
-            <div className="flex flex-col cursor-pointer group" onClick={() => appState === 'catalog' ? null : resetSearch()}>
-              <h1 className="brand-text text-2xl font-black tracking-tight text-gray-900 group-hover:text-red-600 transition-colors">
-                {appState === 'catalog' ? 'Plataforma de Governança' : appState === 'events_capture' ? 'Validação de Tracking' : 'Hub de Artefatos'}
-              </h1>
+            <div className="flex flex-col cursor-pointer group" onClick={() => (appState === 'catalog' || appState === 'home') ? null : resetSearch()}>
+              <div className="flex items-center gap-3">
+                <h1 className="brand-text text-2xl font-black tracking-tight text-gray-900 group-hover:text-red-600 transition-colors">
+                  {appState === 'catalog' ? 'Catálogo de Produtos' : appState === 'home' ? 'Visão Estratégica' : appState === 'events_capture' ? 'Hub de Eventos' : 'Hub de Artefatos'}
+                </h1>
+                {(appState === 'home' || appState === 'events_capture') && (
+                  <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 bg-gray-50 text-gray-500 rounded-full border border-gray-200 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                    Em desenvolvimento
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-sm font-medium text-gray-500 shrink-0">
-            {appState !== "catalog" && (
+            {appState !== "catalog" && appState !== "home" && (
               <button 
-                onClick={() => setAppState("catalog")}
+                onClick={() => setAppState("home")}
                 className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-100 shadow-sm hover:border-bradesco-red hover:text-bradesco-red transition-all font-bold text-xs uppercase tracking-wider h-10"
               >
                 <LayoutList className="w-4 h-4" />
-                Catálogo
+                Início
               </button>
             )}
 
-            {appState !== "initial" && appState !== "decision" && appState !== "catalog" && appState !== "events_capture" && (
+            {appState !== "initial" && appState !== "decision" && appState !== "catalog" && appState !== "events_capture" && appState !== "home" && (
               <button 
                 onClick={resetSearch}
                 className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-100 shadow-sm hover:border-bradesco-red hover:text-bradesco-red transition-all font-bold text-xs uppercase tracking-wider h-10"
@@ -1360,6 +1370,20 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        {appState === "home" && (
+          <HomeScreen
+            userName={currentUser.name.split(' ')[0]} 
+            onNavigate={(feature) => {
+              if (feature === 'hub') {
+                setAppState("initial");
+                setQuery("");
+              } else {
+                setAppState(feature as any);
+              }
+            }} 
+          />
+        )}
 
         {appState === "catalog" && (
           <CatalogScreen 
@@ -1466,7 +1490,7 @@ export default function App() {
         </section>
 
         {/* Content Section */}
-        <section className={`content ${["initial", "catalog", "events_capture"].includes(appState) ? "hidden" : ""}`}>
+        <section className={`content ${["initial", "catalog", "events_capture", "home"].includes(appState) ? "hidden" : ""}`}>
           <NavigationModes />
           
           {/* Decision / Loading Area */}
@@ -2373,6 +2397,45 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 px-6 py-4 flex items-center justify-center z-40 transition-transform h-[72px]">
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setAppState("home")}
+            className={`flex items-center gap-3 px-6 py-2.5 rounded-full font-bold text-sm transition-all ${
+              appState === 'home' 
+                ? 'bg-gray-900 text-white shadow-xl shadow-gray-900/10' 
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 transparent'
+            }`}
+          >
+            <LayoutList className="w-5 h-5" />
+            Visão Estratégica
+          </button>
+          <button 
+            onClick={() => { setAppState("initial"); setQuery(""); }}
+            className={`flex items-center gap-3 px-6 py-2.5 rounded-full font-bold text-sm transition-all ${
+              (!['home', 'events_capture', 'catalog', 'auth', 'syncing'].includes(appState) || appState === 'initial')
+                ? 'bg-[#cc092f] text-white shadow-xl shadow-red-500/20' 
+                : 'text-gray-500 hover:bg-red-50 hover:text-[#cc092f] transparent'
+            }`}
+          >
+            <Landmark className="w-5 h-5" />
+            Hub de Artefatos
+          </button>
+          <button 
+            onClick={() => setAppState("events_capture")}
+            className={`flex items-center gap-3 px-6 py-2.5 rounded-full font-bold text-sm transition-all ${
+              appState === 'events_capture' 
+                ? 'bg-purple-600 text-white shadow-xl shadow-purple-600/20' 
+                : 'text-gray-500 hover:bg-purple-50 hover:text-purple-600 transparent'
+            }`}
+          >
+            <Activity className="w-5 h-5" />
+            Hub de Eventos
+          </button>
+        </div>
+      </div>
+
     </main>
   );
 }
