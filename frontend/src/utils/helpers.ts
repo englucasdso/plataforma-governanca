@@ -89,15 +89,15 @@ export const getFilteredInsights = (subset: Artifact[], queryText: string): Insi
   const principalSubproduto = distribSubproduto[0]?.name || "N/A";
   
   const recomendacoes: string[] = [];
-  if (foraPadraoGA4 > 0) recomendacoes.push("Migrar mapas GA3 para o padrão GA4 para evitar perda de histórico.");
-  if (semResponsavel > 0) recomendacoes.push("Atribuir responsáveis aos artefatos órfãos para garantir a governança.");
-  if (desatualizados > 0) recomendacoes.push("Revisar artefatos com mais de 1 ano sem atualização.");
-  if (scoreAderencia < 90) recomendacoes.push("Estabelecer um força-tarefa de padronização para o produto " + principalProduto);
+  if (foraPadraoGA4 > 0) recomendacoes.push(`Revisar imediatamente ganchos da tela de checkout em ${principalProduto}.`);
+  if (semResponsavel > 0) recomendacoes.push(`Atribuir responsáveis aos artefatos órfãos em ${principalSubproduto} para garantir a governança.`);
+  if (desatualizados > 0) recomendacoes.push(`Revisar artefatos de ${principalSubproduto} com inconsistências críticas.`);
+  if (scoreAderencia < 90) recomendacoes.push(`Estabelecer força-tarefa de padronização imediata para o produto ${principalProduto}.`);
   if (recomendacoes.length === 0) recomendacoes.push("Manter o monitoramento contínuo e a atualização semanal dos documentos.");
 
-  const textoCenario = `Atualmente, o ecossistema de artefatos é dominado pelo produto ${principalProduto}, com forte presença no subproduto ${principalSubproduto}. 
-  ${counts.ga4 > counts.ga3 ? "A transição para o GA4 está em estágio avançado" : "A base ainda depende fortemente do GA3 (Universal)"}, 
-  representando ${counts.ga4} de um total de ${counts.mapas} mapas mapeados.`;
+  const textoCenario = `Visão Consolidada: Foram analisados ${total} artefatos. 
+Riscos Prioritários: ${foraPadraoGA4} inconsistências críticas e ${semResponsavel} integrações sem owner. 
+Impacto em Mensuração: Alto risco de perda de volume de conversão no produto ${principalProduto}.`;
 
   return {
     total,

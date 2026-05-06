@@ -11,22 +11,14 @@ export function CatalogScreen({ userName, onNavigate }: CatalogScreenProps) {
   return (
     <section className="flex-col items-center justify-start pt-8 pb-12 space-y-12 flex">
       <div className="text-center mb-10 max-w-2xl mx-auto">
-        <motion.p 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-2xl font-bold text-gray-900 mb-2"
-        >
-          Olá, {userName}!
-        </motion.p>
         <motion.h2 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
           className="text-4xl font-medium text-gray-900 tracking-tight leading-tight mb-4"
         >
-          Plataforma de Governança
+          Explore e localize artefatos de mensuração
         </motion.h2>
-        <p className="text-gray-500 text-lg">Selecione uma das soluções abaixo para começar sua análise ou gestão</p>
+        <p className="text-gray-500 text-lg">Busque por mapas, eventos ou jornadas em nosso inventário unificado.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl mx-auto">

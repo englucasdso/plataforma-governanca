@@ -7,8 +7,22 @@
 import { Router } from "express";
 import { getInventoryData, calculateInsights, searchArtifacts } from "../services/inventory.service.js";
 import { runCollection, abortCollection } from "../confluenceClient.js";
+// ai.service.ts import and route have been moved to frontend
+
+import { generateInsightsAnalysis } from "../services/ai.service.js";
 
 const router = Router();
+
+router.post("/insights/artifacts", async (req, res) => {
+  try {
+    const artifacts = req.body || [];
+    const analysis = await generateInsightsAnalysis(artifacts);
+    res.json(analysis);
+  } catch (error: any) {
+    console.error("[API] Erro ao gerar insights:", error);
+    res.status(500).json({ error: "Erro ao gerar insights com IA." });
+  }
+});
 
 router.post("/cancel-inventory", async (req, res) => {
   console.log(`[API] POST /api/cancel-inventory - Solicitação de cancelamento recebida.`);

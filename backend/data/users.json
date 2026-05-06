@@ -1,0 +1,18 @@
+[
+  {
+    "id": "1",
+    "name": "Lucas Admin",
+    "email": "lucas.doliveira@bradesco.com.br",
+    "role": "admin",
+    "status": "active",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "2",
+    "name": "Salla User",
+    "email": "salla@bradesco.com.br",
+    "role": "user",
+    "status": "active",
+    "createdAt": "2024-01-02T00:00:00.000Z"
+  }
+]

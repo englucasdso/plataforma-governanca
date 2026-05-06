@@ -28,3 +28,43 @@ export async function searchContent(query: string) {
   if (!res.ok) throw new Error("Falha na busca");
   return res.json();
 }
+
+export async function fetchUsers() {
+  const res = await fetch('/api/users');
+  if (!res.ok) throw new Error("Falha ao carregar usuários");
+  return res.json();
+}
+
+export async function createUser(user: any) {
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(user)
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Falha ao criar usuário");
+  }
+  return res.json();
+}
+
+export async function updateUser(id: string, user: any) {
+  const res = await fetch(`/api/users/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(user)
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Falha ao atualizar usuário");
+  }
+  return res.json();
+}
+
+export async function deleteUser(id: string) {
+  const res = await fetch(`/api/users/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error("Falha ao deletar usuário");
+  return res.json();
+}
