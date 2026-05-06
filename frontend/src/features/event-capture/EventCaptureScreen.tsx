@@ -2,10 +2,6 @@ import React, { useState } from 'react';
 import { Target, ArrowRight, Activity, Search, Filter, CheckCircle2, AlertTriangle, AlertCircle, ChevronLeft } from 'lucide-react';
 import { TypewriterText } from '../../components/TypewriterText';
 
-import gtmLogo from '../../assets/images/regenerated_image_1778072674713.svg';
-import appsFlyerLogo from '../../assets/images/regenerated_image_1778072675075.svg';
-import metaLogo from '../../assets/images/regenerated_image_1778072675484.svg';
-
 const MOCK_EVENTS = [
   { id: 1, name: 'purchase', platform: 'GA4', status: 'ativo', lastOccurrence: 'Há 2 minutos' },
   { id: 2, name: 'add_to_cart', platform: 'GA4', status: 'ativo', lastOccurrence: 'Há 5 minutos' },
@@ -18,11 +14,11 @@ const MOCK_EVENTS = [
 ];
 
 const PLATFORMS = [
-  { name: 'GA4', events: 3, status: 'ativo', color: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100' },
-  { name: 'GTM', events: 12, status: 'ativo', color: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
-  { name: 'AppsFlyer', events: 1, status: 'ativo', color: 'bg-green-50', text: 'text-green-600', border: 'border-green-100' },
-  { name: 'Meta', events: 2, status: 'atenção', color: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
-  { name: 'TikTok', events: 2, status: 'atenção', color: 'bg-black/5', text: 'text-black', border: 'border-black/10' },
+  { name: 'GA4', logoUrl: 'https://cdn.simpleicons.org/googleanalytics/E37400', events: 3, status: 'ativo', color: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100' },
+  { name: 'GTM', logoUrl: 'https://cdn.simpleicons.org/googletagmanager/246FDB', events: 12, status: 'ativo', color: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
+  { name: 'AppsFlyer', logoUrl: 'https://cdn.simpleicons.org/appsflyer/00B298', events: 1, status: 'ativo', color: 'bg-green-50', text: 'text-green-600', border: 'border-green-100' },
+  { name: 'Meta', logoUrl: 'https://cdn.simpleicons.org/meta/0668E1', events: 2, status: 'atenção', color: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
+  { name: 'TikTok', logoUrl: 'https://cdn.simpleicons.org/tiktok/000000', events: 2, status: 'atenção', color: 'bg-black/5', text: 'text-black', border: 'border-black/10' },
 ];
 
 interface EventCaptureScreenProps {
@@ -69,23 +65,10 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
             >
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 overflow-hidden p-2`}>
-                  {platform.name === 'GA4' ? (
-                    <svg viewBox="0 0 2195.9 2430.9" className="w-full h-full object-contain" xmlns="http://www.w3.org/2000/svg">
-                      <path fill="#F9AB00" d="M2195.9,2126.7c0.9,166.9-133.7,302.8-300.5,303.7c-12.4,0.1-24.9-0.6-37.2-2.1 c-154.8-22.9-268.2-157.6-264.4-314V316.1c-3.7-156.6,110-291.3,264.9-314c165.7-19.4,315.8,99.2,335.2,264.9 c1.4,12.2,2.1,24.4,2,36.7L2195.9,2126.7z"/>
-                      <path fill="#E37400" d="M301.1,1828.7c166.3,0,301.1,134.8,301.1,301.1c0,166.3-134.8,301.1-301.1,301.1 C134.8,2430.9,0,2296.1,0,2129.8C0,1963.5,134.8,1828.7,301.1,1828.7z M1093.3,916.2c-167.1,9.2-296.7,149.3-292.8,316.6v808.7 c0,219.5,96.6,352.7,238.1,381.1c163.3,33.1,322.4-72.4,355.5-235.7c4.1-20,6.1-40.3,6-60.7v-907.4 c0.3-166.9-134.7-302.4-301.6-302.7C1096.8,916.1,1095,916.1,1093.3,916.2z"/>
-                    </svg>
-                  ) : platform.name === 'GTM' ? (
-                    <img src={gtmLogo} alt="GTM" className="w-full h-full object-contain" />
-                  ) : platform.name === 'AppsFlyer' ? (
-                    <img src={appsFlyerLogo} alt="AppsFlyer" className="w-full h-full object-contain" />
-                  ) : platform.name === 'Meta' ? (
-                    <img src={metaLogo} alt="Meta" className="w-full h-full object-contain" />
-                  ) : platform.name === 'TikTok' ? (
-                    <svg viewBox="0 0 24 24" className="w-full h-full object-contain" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.12-3.41-3.25-3.67-5.54-.15-1.25.04-2.52.54-3.66.7-1.59 2.05-2.84 3.65-3.4 1.48-.52 3.12-.52 4.59-.03v4.19c-1.15-.31-2.44-.13-3.45.54-1.04.66-1.68 1.83-1.59 3.06.07 1.19.78 2.26 1.86 2.76 1.25.56 2.78.36 3.82-.48.91-.71 1.48-1.78 1.5-2.94.03-5.53.01-11.05.01-16.58h4.27z"/>
-                    </svg>
+                  {platform.logoUrl ? (
+                    <img src={platform.logoUrl} alt={platform.name} className="w-full h-full object-contain" />
                   ) : (
-                    platform.name.charAt(0)
+                    <span className="font-bold text-gray-400">{platform.name.charAt(0)}</span>
                   )}
                 </div>
                 <div>
