@@ -25,7 +25,13 @@ const PLATFORMS = [
   { name: 'TikTok', events: 2, status: 'atenção', color: 'bg-black/5', text: 'text-black', border: 'border-black/10' },
 ];
 
-export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatform }: { onNavigate?: (view: 'initial') => void; selectedPlatform: string | null; onSelectPlatform: (platform: string | null) => void }) {
+interface EventCaptureScreenProps {
+  onNavigate?: (view: 'initial') => void;
+  selectedPlatform: string | null;
+  onSelectPlatform: (platform: string | null) => void;
+}
+
+export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatform }: EventCaptureScreenProps) {
   const filteredEvents = selectedPlatform 
     ? MOCK_EVENTS.filter(e => e.platform === selectedPlatform)
     : MOCK_EVENTS;
