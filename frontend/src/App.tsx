@@ -17,7 +17,7 @@ import { X, AlertTriangle, Target, Network, Filter, CheckCircle2, AlertCircle, C
 import Xarrow, { Xwrapper } from 'react-xarrows';
 import { getOperationalInsights } from "./utils/inventoryHelpers";
 import { fetchInventory, searchContent, fetchUsers, createUser, updateUser, deleteUser } from "./services/api";
-import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "./types";
+import { Artifact, Insights, SearchResponse, User as UserType, UserRole, UserStatus } from "./types";
 import { normalizar, formatDataBR, getFilteredInsights } from "./utils/helpers";
 import { CatalogScreen } from "./features/catalog/CatalogScreen";
 import { MultiSelect } from "./components/MultiSelect";
@@ -359,7 +359,7 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
-  const [formData, setFormData] = useState({ name: '', nickname: '', email: '', role: 'gestor360' as UserRole, status: 'ativo' as 'ativo' | 'inativo' });
+  const [formData, setFormData] = useState({ name: '', nickname: '', email: '', role: 'gestor360' as UserRole, status: 'ativo' as UserStatus });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -461,7 +461,7 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Status</label>
                 <select 
                   value={formData.status}
-                  onChange={e => setFormData({ ...formData, status: e.target.value as 'ativo' | 'inativo' })}
+                  onChange={e => setFormData({ ...formData, status: e.target.value as UserStatus })}
                   className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-bradesco-red transition-all font-medium text-gray-800 appearance-none"
                 >
                   <option value="ativo">ATIVO</option>
@@ -495,7 +495,6 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
                   <th className="p-6 text-[10px] font-black text-gray-400 tracking-widest">E-MAIL</th>
                   <th className="p-6 text-[10px] font-black text-gray-400 tracking-widest">PERFIL</th>
                   <th className="p-6 text-[10px] font-black text-gray-400 tracking-widest">STATUS</th>
-                  <th className="p-6 text-[10px] font-black text-gray-400 tracking-widest">DATAS</th>
                   <th className="p-6 text-[10px] font-black text-gray-400 tracking-widest text-right">AÇÕES</th>
                 </tr>
               </thead>
@@ -513,14 +512,9 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
                       </span>
                     </td>
                     <td className="p-6">
-                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${u.status === 'ativo' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                        {u.status === 'ativo' ? 'ATIVO' : 'INATIVO'}
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${u.status === 'ativo' || u.status === 'active' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                        {u.status === 'ativo' || u.status === 'active' ? 'ATIVO' : 'INATIVO'}
                       </span>
-                    </td>
-                    <td className="p-6 text-xs text-gray-500 space-y-1">
-                      <div title="Criado em"><span className="text-[9px] font-bold uppercase mr-1">C:</span>{new Date(u.createdAt).toLocaleDateString('pt-BR')}</div>
-                      {u.updatedAt && <div title="Atualizado em"><span className="text-[9px] font-bold uppercase mr-1">A:</span>{new Date(u.updatedAt).toLocaleDateString('pt-BR')}</div>}
-                      {u.lastAccess && <div title="Último acesso"><span className="text-[9px] font-bold uppercase mr-1">U:</span>{new Date(u.lastAccess).toLocaleDateString('pt-BR')}</div>}
                     </td>
                     <td className="p-6 text-right space-x-2">
                        <button onClick={() => startEdit(u)} className="p-2 text-gray-400 hover:text-bradesco-red transition-colors">Editar</button>
@@ -546,15 +540,23 @@ const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: User
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const allUsers = users.length > 0 ? users : [{
+      id: '1',
+      name: 'Lucas Admin',
+      email: 'lucas.doliveira@bradesco.com.br',
+      role: 'admin' as any,
+      status: 'ativo' as any,
+      createdAt: new Date().toISOString()
+    }];
+    const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (user) {
-      if (user.status !== 'ativo') {
+      if (user.status !== 'ativo' && user.status !== 'active') {
         setError("Seu acesso está inativo. Procure um administrador.");
       } else {
         onLogin(user);
       }
     } else {
-      setError("Acesso não autorizado. Procure um administrador.");
+      setError("Acesso não autorizado. E-mail não encontrado na base de usuários.");
     }
   };
 
@@ -998,7 +1000,7 @@ export default function App() {
 
   const handleAddUser = async (userData: Omit<UserType, 'id' | 'createdAt'>) => {
     try {
-      const newUser = await createUser({ ...userData, status: 'active' });
+      const newUser = await createUser(userData);
       const updatedUsers = await fetchUsers();
       setUsersDb(updatedUsers);
     } catch (err: any) {

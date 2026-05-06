@@ -4,15 +4,17 @@
     "name": "Lucas Admin",
     "email": "lucas.doliveira@bradesco.com.br",
     "role": "admin",
-    "status": "active",
-    "createdAt": "2024-01-01T00:00:00.000Z"
+    "status": "ativo",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "nickname": "",
+    "updatedAt": "2026-05-06T16:10:00.460Z"
   },
   {
     "id": "2",
     "name": "Salla User",
     "email": "salla@bradesco.com.br",
     "role": "user",
-    "status": "active",
+    "status": "ativo",
     "createdAt": "2024-01-02T00:00:00.000Z"
   }
 ]

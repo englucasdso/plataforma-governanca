@@ -59,7 +59,7 @@ export type UserRole =
   | "artefatos"
   | "eventos";
 
-export type UserStatus = "ativo" | "inativo";
+export type UserStatus = "ativo" | "inativo" | "active";
 
 export interface User {
   id: string;
