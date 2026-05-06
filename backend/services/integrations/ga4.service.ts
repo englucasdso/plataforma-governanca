@@ -6,6 +6,28 @@ const SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"];
 
 let cachedAuth: GoogleAuth | null = null;
 
+function setupProxy() {
+  const proxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.https_proxy || process.env.http_proxy || process.env.CORPORATE_PROXY;
+  if (proxy) {
+    console.log("[GA4] proxy detectado");
+    console.log(`[GA4] usando proxy corporativo: ${proxy}`);
+    process.env.HTTPS_PROXY = proxy;
+    process.env.HTTP_PROXY = proxy;
+    process.env.https_proxy = proxy;
+    process.env.http_proxy = proxy;
+    process.env.grpc_proxy = proxy;
+  }
+  
+  const caCert = process.env.NODE_EXTRA_CA_CERTS || process.env.CORPORATE_CA_CERT;
+  if (caCert) {
+    console.log(`[GA4] certificado corporativo carregado: ${caCert}`);
+    process.env.NODE_EXTRA_CA_CERTS = caCert;
+  }
+}
+
+// Inicializa a leitura do proxy assim que a service é carregada
+setupProxy();
+
 async function getAuth() {
   if (cachedAuth) return cachedAuth;
   
@@ -15,6 +37,14 @@ async function getAuth() {
   
   cachedAuth = auth;
   return auth;
+}
+
+function handleProxyError(error: any) {
+  const errorMsg = error.message || "";
+  if (errorMsg.includes("UNAVAILABLE") || errorMsg.includes("No connection established") || errorMsg.includes("ETIMEDOUT") || errorMsg.includes("timeout")) {
+    return new Error(`Autenticação OK, mas conexão com Google Analytics foi bloqueada por proxy/rede corporativa. (Detalhes: ${errorMsg})`);
+  }
+  return error;
 }
 
 export async function checkStatus() {
@@ -58,7 +88,7 @@ export async function getAccounts() {
     if (error.message.includes("Could not load the default credentials")) {
         throw new Error("ADC não configurado. Execute gcloud auth application-default login.");
     }
-    throw error;
+    throw handleProxyError(error);
   }
 }
 
@@ -99,7 +129,7 @@ export async function getProperties(parentAccount?: string) {
     return allProperties;
   } catch (error: any) {
     console.error("[GA4][ERRO] listando properties:", error.message);
-    throw error;
+    throw handleProxyError(error);
   }
 }
 
@@ -150,7 +180,7 @@ export async function getEventsFromProperty(propertyId: string, propertyNameStr?
     return events;
   } catch (error: any) {
     console.error(`[GA4][ERRO] buscando eventos para a propriedade ${propertyId}:`, error.message);
-    throw error;
+    throw handleProxyError(error);
   }
 }
 
@@ -173,6 +203,6 @@ export async function getAllEvents() {
         return allEvents;
     } catch (error: any) {
         console.error(`[GA4][ERRO] buscando eventos all:`, error.message);
-        throw error;
+        throw handleProxyError(error);
     }
 }
