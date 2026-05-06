@@ -645,7 +645,7 @@ const AuthScreen = ({ onLogin, onCancel }: { onLogin: (u: string, p: string) => 
   return (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md"
     >
       <div className="bg-white rounded-[40px] p-12 max-w-md w-full shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-2 bg-bradesco-gradient" />
@@ -726,7 +726,7 @@ const SyncWidget = ({ job, onCancel }: { job: any, onCancel: () => void }) => {
       initial={{ opacity: 0, y: 50, scale: 0.9 }} 
       animate={{ opacity: 1, y: 0, scale: 1 }} 
       exit={{ opacity: 0, y: 50, scale: 0.9 }}
-      className="fixed bottom-6 right-6 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-80 flex flex-col gap-3 overflow-hidden"
+      className="fixed bottom-6 right-6 z-[100] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-80 flex flex-col gap-3 overflow-hidden"
     >
       <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
         <div 
@@ -818,7 +818,7 @@ export default function App() {
   const [fullInventory, setFullInventory] = useState<Artifact[]>([]);
 
   useEffect(() => {
-    if (appState === "operational_insights" && fullInventory.length === 0) {
+    if ((appState === "operational_insights" || appState === "home") && fullInventory.length === 0) {
       setLoading(true);
       fetchInventory()
         .then((res) => {
@@ -1504,7 +1504,7 @@ export default function App() {
 
       <div className={`flex flex-col flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-32 transition-all relative ${appState === 'auth' ? 'opacity-0 pointer-events-none absolute' : 'opacity-100 relative'}`}>
         {/* Header */}
-        <header className="flex justify-between items-center mb-12 relative z-50">
+        <header className="flex justify-between items-center mb-12 relative z-40">
           <div className="flex items-center gap-8 flex-1">
             <div className="flex flex-col cursor-pointer group" onClick={() => { setAppState('copilot'); setQuery(''); }}>
               <div className="flex items-center gap-3">
@@ -1688,7 +1688,8 @@ export default function App() {
 
         {appState === "home" && (
           <HomeScreen
-            userName={currentUser.name.split(' ')[0]} 
+            userName={currentUser.name.split(' ')[0]}
+            fullInventory={fullInventory}
             onNavigate={(feature) => {
               if (feature === 'hub') {
                 setAppState("initial");
@@ -1880,7 +1881,7 @@ export default function App() {
                       onClick={() => handleBarClick(bar.items)}
                     >
                       {/* Tooltip on Hover */}
-                      <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 scale-95 opacity-0 group-[&:hover]:opacity-100 group-[&:hover]:scale-100 transition-all duration-300 z-50 pointer-events-none bg-gray-900 text-white px-4 py-3 rounded-2xl text-xs font-medium shadow-2xl min-w-[200px] flex flex-col gap-2">
+                      <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 scale-95 opacity-0 group-[&:hover]:opacity-100 group-[&:hover]:scale-100 transition-all duration-300 z-[100] pointer-events-none bg-gray-900 text-white px-4 py-3 rounded-2xl text-xs font-medium shadow-2xl min-w-[200px] flex flex-col gap-2">
                         <div className="font-bold text-sm border-b border-gray-700/50 pb-2 mb-1 flex justify-between items-center gap-4">
                           <span className="text-gray-300">{idx === chartData.length - 1 ? 'Hoje' : bar.label}</span>
                           <span className="text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md">{bar.value} atlz</span>
@@ -2704,7 +2705,7 @@ export default function App() {
       </div>
 
       {/* Static Footer */}
-      <footer className="fixed bottom-0 left-0 w-full px-8 py-4 bg-white/90 backdrop-blur-sm border-t border-gray-100 flex justify-between items-center text-[10px] uppercase font-black tracking-widest text-gray-400 z-50">
+      <footer className="fixed bottom-0 left-0 w-full px-8 py-4 bg-white/90 backdrop-blur-sm border-t border-gray-100 flex justify-between items-center text-[10px] uppercase font-black tracking-widest text-gray-400 z-30">
         <div className="flex flex-col gap-1 text-left">
           <div className="normal-case">Desenvolvido por: <strong className="lowercase">lucas.doliveira@bradesco.com.br</strong></div>
           {lastSync && (
@@ -2719,7 +2720,7 @@ export default function App() {
       {/* Export Modal */}
       <AnimatePresence>
         {showExportModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

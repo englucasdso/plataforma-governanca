@@ -56,7 +56,7 @@ export function MultiSelect({ label, options, values, onChange }: MultiSelectPro
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-[220px] bg-white border border-gray-200 shadow-xl rounded-xl z-50 overflow-hidden flex flex-col text-left">
+        <div className="absolute top-full left-0 mt-1 w-[220px] bg-white border border-gray-200 shadow-xl rounded-xl z-[100] overflow-hidden flex flex-col text-left">
           <div className="max-h-60 overflow-y-auto p-1.5 flex flex-col gap-0.5">
             <button 
               onClick={() => toggle('all')}

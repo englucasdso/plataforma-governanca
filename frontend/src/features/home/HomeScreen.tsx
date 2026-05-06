@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Landmark, Target, ArrowRight, Percent, AlertCircle, CheckCircle2, AlertTriangle, Layers, Maximize2, Shield, Activity, X, LayoutList, Sparkles } from 'lucide-react';
 import { TypewriterText } from '../../components/TypewriterText';
+import { Artifact } from '../../types';
+import { getHomeStats } from '../../utils/homeHelpers';
 
 interface HomeScreenProps {
   userName: string;
+  fullInventory?: Artifact[];
   onNavigate: (feature: 'hub' | 'events_capture' | 'catalog') => void;
   onGenerateSummary?: () => void;
 }
@@ -36,8 +39,47 @@ const PRODUCTS = [
   { id: '17', name: 'My Account', status: 'saudável', coverage: 89, journeys: 5, gaps: 0, mappedEvents: 78, orphanEvents: 2, lastUpdate: 'Hoje' },
 ];
 
-export function HomeScreen({ userName, onNavigate, onGenerateSummary }: HomeScreenProps) {
-  const [selectedProduct, setSelectedProduct] = useState(PRODUCTS[0]);
+export function HomeScreen({ userName, fullInventory = [], onNavigate, onGenerateSummary }: HomeScreenProps) {
+  const { indicators, products } = useMemo(() => {
+    if (!fullInventory.length) {
+      return { indicators: INDICATORS, products: PRODUCTS };
+    }
+    const computed = getHomeStats(fullInventory);
+    // Keep icons in indicators by mapping them
+    const iconMap = [
+      <Percent className="w-5 h-5" />,
+      <Layers className="w-5 h-5" />,
+      <Activity className="w-5 h-5" />,
+      <AlertCircle className="w-5 h-5" />
+    ];
+    const colorMap = [
+      { color: 'text-blue-600', bg: 'bg-blue-50' },
+      { color: 'text-indigo-600', bg: 'bg-indigo-50' },
+      { color: 'text-green-600', bg: 'bg-green-50' },
+      { color: 'text-red-600', bg: 'bg-red-50' }
+    ];
+    const finalIndicators = computed.indicators.map((ind, i) => ({
+      ...ind,
+      icon: iconMap[i],
+      color: colorMap[i].color,
+      bg: colorMap[i].bg
+    }));
+
+    // if all have 0 journeys, just show the placeholder
+    if (computed.products.every(p => p.journeys === 0)) {
+      return { indicators: finalIndicators, products: PRODUCTS };
+    }
+
+    return { indicators: finalIndicators, products: computed.products };
+  }, [fullInventory]);
+
+  const [selectedProduct, setSelectedProduct] = useState(products[0]);
+
+  React.useEffect(() => {
+    // try to keep the currently selected product by ID
+    const found = products.find(p => p.id === selectedProduct?.id);
+    setSelectedProduct(found || products[0]);
+  }, [products]);
 
   return (
     <section className="flex flex-col flex-1 w-full max-w-[1400px] mx-auto pt-4 pb-8">
@@ -53,7 +95,7 @@ export function HomeScreen({ userName, onNavigate, onGenerateSummary }: HomeScre
 
       {/* Top Indicators */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {INDICATORS.map((ind, idx) => (
+        {indicators.map((ind, idx) => (
           <motion.div 
             key={ind.label}
             initial={{ opacity: 0, y: 20 }}
@@ -75,8 +117,8 @@ export function HomeScreen({ userName, onNavigate, onGenerateSummary }: HomeScre
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         {/* Products Grid */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {PRODUCTS.map((prod, idx) => {
-            const isSelected = selectedProduct.id === prod.id;
+          {products.map((prod, idx) => {
+            const isSelected = selectedProduct && selectedProduct.id === prod.id;
             return (
               <motion.div
                 key={prod.id}
@@ -176,20 +218,48 @@ export function HomeScreen({ userName, onNavigate, onGenerateSummary }: HomeScre
 
                 <div className="space-y-4 mb-8">
                   <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest pl-1">Principais Alertas</h4>
-                  <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex gap-3 text-red-900">
-                    <AlertTriangle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold">Inconsistência de tagueamento</p>
-                      <p className="text-xs mt-1 opacity-80 font-medium">Detectados ganchos não mapeados em 3 telas principais.</p>
+                  
+                  {selectedProduct.journeys === 0 ? (
+                    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex gap-3 text-gray-500">
+                      <AlertCircle className="w-5 h-5 shrink-0 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold">Produto sem rastreamento</p>
+                        <p className="text-xs mt-1 opacity-80 font-medium">Nenhuma jornada foi encontrada no inventário.</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-4 flex gap-3 text-yellow-900">
-                    <AlertCircle className="w-5 h-5 shrink-0 text-yellow-600 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold">Documentação desatualizada</p>
-                      <p className="text-xs mt-1 opacity-80 font-medium">Os fluxos de onboarding requerem revisão no Confluence.</p>
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      {selectedProduct.gaps > 0 && (
+                        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex gap-3 text-red-900">
+                          <AlertTriangle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold">Mapeamentos incompletos</p>
+                            <p className="text-xs mt-1 opacity-80 font-medium">Existem {selectedProduct.gaps} artefatos com tipo de mapa ou responsáveis pendentes.</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedProduct.orphanEvents > 0 && (
+                        <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-4 flex gap-3 text-yellow-900">
+                          <AlertCircle className="w-5 h-5 shrink-0 text-yellow-600 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold">Documentação em risco</p>
+                            <p className="text-xs mt-1 opacity-80 font-medium">{selectedProduct.orphanEvents} eventos estimados podem estar desconectados dos pipelines oficiais.</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedProduct.gaps === 0 && selectedProduct.orphanEvents === 0 && (
+                        <div className="bg-green-50 border border-green-100 rounded-2xl p-4 flex gap-3 text-green-900">
+                          <CheckCircle2 className="w-5 h-5 shrink-0 text-green-500 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold">Tudo em conformidade</p>
+                            <p className="text-xs mt-1 opacity-80 font-medium">As métricas de governança estão dentro dos SLAs estabelecidos.</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-gray-50">
