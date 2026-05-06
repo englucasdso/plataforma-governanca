@@ -15,16 +15,15 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, AlertTriangle, Target, Network, Filter, CheckCircle2, AlertCircle, Clock, User, Info, Shield, LogOut, Trash2, Plus, Settings, Landmark, LayoutList, RefreshCw, Check, Loader2, KeyRound, Activity, ArrowRight, Search, ChevronDown, ChevronUp, ChevronLeft, ExternalLink, Download, Sparkles } from "lucide-react";
 import Xarrow, { Xwrapper } from 'react-xarrows';
-import { fetchInventory, searchContent, fetchUsers, createUser, updateUser, deleteUser } from "@/services/api";
-import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "@/types";
-import { normalizar, formatDataBR, getFilteredInsights } from "@/utils/helpers";
+import { fetchInventory, searchContent, fetchUsers, createUser, updateUser, deleteUser } from "./services/api";
+import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "./types";
+import { normalizar, formatDataBR, getFilteredInsights } from "./utils/helpers";
 import { CatalogScreen } from "./features/catalog/CatalogScreen";
-import { MultiSelect } from "@/components/MultiSelect";
+import { MultiSelect } from "./components/MultiSelect";
 import { EventCaptureScreen } from "./features/event-capture/EventCaptureScreen";
 import { HomeScreen } from "./features/home/HomeScreen";
 import { CopilotScreen } from "./features/copilot/CopilotScreen";
-
-import { TypewriterText } from "@/components/TypewriterText";
+import { TypewriterText } from "./components/TypewriterText";
 
 const INITIAL_USERS: UserType[] = [
   {

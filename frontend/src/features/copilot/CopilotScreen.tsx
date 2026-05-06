@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Activity, LayoutList, Search, FileText } from "lucide-react";
 
-import { UserRole } from "@/types";
+import { UserRole } from "../../types";
 
 interface CopilotScreenProps {
   userName: string;
