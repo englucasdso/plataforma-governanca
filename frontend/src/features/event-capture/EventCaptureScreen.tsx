@@ -25,51 +25,112 @@ interface EventCaptureScreenProps {
 
 export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatform }: EventCaptureScreenProps) {
   const [ga4Status, setGa4Status] = useState<any>(null);
-  const [properties, setProperties] = useState<any[]>([]);
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string>("all");
-  const [ga4Events, setGa4Events] = useState<any[]>([]);
-  const [loadingGa4, setLoadingGa4] = useState(false);
   
-  useEffect(() => {
-    fetch("/api/events/ga4/status")
-      .then(res => res.json())
-      .then(data => setGa4Status(data))
-      .catch(err => console.error("Error fetching GA4 status", err));
-  }, []);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  
+  const [properties, setProperties] = useState<any[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
+  
+  const [ga4Events, setGa4Events] = useState<any[]>([]);
+  
+  const [loadingState, setLoadingState] = useState<"status" | "accounts" | "properties" | "events" | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedPlatform === "GA4" && ga4Status?.connected) {
-      setLoadingGa4(true);
-      fetch("/api/events/ga4/properties")
-        .then(res => res.json())
-        .then(data => {
-            if (Array.isArray(data)) {
+    setLoadingState("status");
+    fetch("/api/events/ga4/status")
+      .then(res => res.json())
+      .then(data => {
+          setGa4Status(data);
+          setLoadingState(null);
+      })
+      .catch(err => {
+          console.error("Error fetching GA4 status", err);
+          setErrorMsg("Erro ao verificar status GA4.");
+          setLoadingState(null);
+      });
+  }, []);
+
+  // Fetch accounts when GA4 is selected and it's connected
+  useEffect(() => {
+    if (selectedPlatform === "GA4" && ga4Status?.connected && accounts.length === 0) {
+      setLoadingState("accounts");
+      setErrorMsg(null);
+      fetch("/api/events/ga4/accounts")
+        .then(async res => {
+            const data = await res.json();
+            if (res.ok && Array.isArray(data)) {
+                setAccounts(data);
+            } else {
+                console.error("Failed to load accounts:", data);
+                setErrorMsg(data.error || "Erro ao listar contas GA4.");
+            }
+            setLoadingState(null);
+        })
+        .catch(err => {
+            console.error("Error fetching GA4 accounts", err);
+            setErrorMsg("Falha ao comunicar com o servidor (accounts).");
+            setLoadingState(null);
+        });
+    }
+  }, [selectedPlatform, ga4Status, accounts.length]);
+
+  // Fetch properties when an account is selected
+  useEffect(() => {
+    if (selectedPlatform === "GA4" && selectedAccountId) {
+      setLoadingState("properties");
+      setErrorMsg(null);
+      setProperties([]);
+      setSelectedPropertyId('');
+      setGa4Events([]);
+      
+      fetch(`/api/events/ga4/properties?account=${encodeURIComponent(selectedAccountId)}`)
+        .then(async res => {
+            const data = await res.json();
+            if (res.ok && Array.isArray(data)) {
                 setProperties(data);
             } else {
                 console.error("Failed to load properties:", data);
-                setProperties([]);
+                setErrorMsg(data.error || "Erro ao listar propriedades GA4.");
             }
-        })
-        .catch(err => console.error("Error fetching GA4 properties", err));
-      
-      const endpoint = selectedPropertyId === "all" ? "/api/events/ga4/events/all" : `/api/events/ga4/events?propertyId=${selectedPropertyId}`;
-      fetch(endpoint)
-        .then(res => res.json())
-        .then(data => {
-            if (Array.isArray(data)) {
-                setGa4Events(data);
-            } else {
-                console.error("Failed to load events:", data);
-                setGa4Events([]);
-            }
-            setLoadingGa4(false);
+            setLoadingState(null);
         })
         .catch(err => {
-            console.error("Error fetching GA4 events", err);
-            setLoadingGa4(false);
+            console.error("Error fetching GA4 properties", err);
+            setErrorMsg("Falha ao comunicar com o servidor (properties).");
+            setLoadingState(null);
         });
     }
-  }, [selectedPlatform, ga4Status, selectedPropertyId]);
+  }, [selectedAccountId, selectedPlatform]);
+
+  // Fetch events when a property is selected
+  useEffect(() => {
+      if (selectedPlatform === "GA4" && selectedPropertyId) {
+          setLoadingState("events");
+          setErrorMsg(null);
+          setGa4Events([]);
+          
+          fetch(`/api/events/ga4/events?propertyId=${selectedPropertyId}`)
+            .then(async res => {
+                const data = await res.json();
+                if (res.ok && Array.isArray(data)) {
+                    setGa4Events(data);
+                } else {
+                    console.error("Failed to load events:", data);
+                    setErrorMsg(data.error || "Erro ao buscar eventos GA4.");
+                }
+                setLoadingState(null);
+            })
+            .catch(err => {
+                console.error("Error fetching GA4 events", err);
+                setErrorMsg("Falha ao comunicar com o servidor (events).");
+                setLoadingState(null);
+            });
+      } else {
+          setGa4Events([]);
+      }
+  }, [selectedPropertyId, selectedPlatform]);
 
   const filteredEvents = selectedPlatform === "GA4" 
     ? ga4Events.map((evt, idx) => ({
@@ -93,19 +154,48 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
           </h2>
         </div>
         
-        {selectedPlatform === "GA4" && (
-            <div className="flex gap-4 mt-6 items-center">
-                <select 
-                    value={selectedPropertyId}
-                    onChange={(e) => setSelectedPropertyId(e.target.value)}
-                    className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
-                >
-                    <option value="all">Todas as properties</option>
-                    {properties.map(p => (
-                        <option key={p.propertyId} value={p.propertyId}>{p.displayName || p.name}</option>
-                    ))}
-                </select>
-                {loadingGa4 && <span className="text-sm font-medium text-purple-600 animate-pulse">Carregando eventos...</span>}
+        {selectedPlatform === "GA4" && ga4Status?.connected && (
+            <div className="flex flex-col gap-4 mt-6">
+                <div className="flex gap-4 items-center flex-wrap">
+                    <select 
+                        value={selectedAccountId}
+                        onChange={(e) => setSelectedAccountId(e.target.value)}
+                        className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
+                        disabled={loadingState === "accounts"}
+                    >
+                        <option value="">1. Selecione uma Conta</option>
+                        {accounts.map(a => (
+                            <option key={a.name} value={a.name}>{a.displayName || a.name}</option>
+                        ))}
+                    </select>
+
+                    <select 
+                        value={selectedPropertyId}
+                        onChange={(e) => setSelectedPropertyId(e.target.value)}
+                        className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
+                        disabled={!selectedAccountId || loadingState === "properties"}
+                    >
+                        <option value="">2. Selecione uma Propriedade</option>
+                        {properties.map(p => (
+                            <option key={p.propertyId} value={p.propertyId}>{p.displayName || p.name}</option>
+                        ))}
+                    </select>
+                </div>
+                
+                {loadingState && loadingState !== "status" && (
+                    <div className="flex items-center gap-2 text-sm font-medium text-purple-600">
+                        {loadingState === "accounts" && "Carregando contas..."}
+                        {loadingState === "properties" && "Carregando propriedades..."}
+                        {loadingState === "events" && "Buscando eventos da propriedade..."}
+                    </div>
+                )}
+                
+                {errorMsg && (
+                    <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 flex items-start gap-3 mt-2 text-sm font-medium max-w-2xl">
+                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <p>{errorMsg}</p>
+                    </div>
+                )}
             </div>
         )}
 
@@ -205,7 +295,15 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
         </div>
       ) : (
         <div className="glass-card rounded-[32px] border border-gray-100 overflow-hidden bg-white shadow-sm">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto border-b border-gray-50">
+            <div className="flex items-center justify-between px-8 py-4">
+              <button 
+                onClick={() => onSelectPlatform(null)}
+                className="flex items-center gap-2 text-xs font-black text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-widest"
+              >
+                <ChevronLeft className="w-4 h-4" /> Voltar
+              </button>
+            </div>
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-gray-50 bg-gray-50/50">
@@ -250,7 +348,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                     </td>
                   </tr>
                 ))}
-                {filteredEvents.length === 0 && !loadingGa4 && (
+                {filteredEvents.length === 0 && loadingState !== "events" && (
                   <tr>
                     <td colSpan={selectedPlatform === "GA4" ? 5 : 4} className="px-8 py-10 text-center text-gray-500">
                       Nenhum evento encontrado para esta plataforma.

@@ -5,7 +5,6 @@ import { BetaAnalyticsDataClient } from "@google-analytics/data";
 const SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"];
 
 let cachedAuth: GoogleAuth | null = null;
-let cachedProjectId: string | null = null;
 
 async function getAuth() {
   if (cachedAuth) return cachedAuth;
@@ -20,6 +19,7 @@ async function getAuth() {
 
 export async function checkStatus() {
   try {
+    console.log("[GA4] verificando ADC");
     const auth = await getAuth();
     // Verify if we can get credentials (implicitly checks ADC availability)
     const client = await auth.getClient();
@@ -30,7 +30,7 @@ export async function checkStatus() {
       message: "Conectado via Google Cloud SDK"
     };
   } catch (error: any) {
-    console.error("Erro ao verificar ADC do GA4:", error.message);
+    console.error("[GA4][ERRO] ao verificar ADC:", error.message);
     return {
       connected: false,
       authType: null,
@@ -41,14 +41,20 @@ export async function checkStatus() {
 
 export async function getAccounts() {
   try {
+    console.log("[GA4] listando accounts");
     const auth = await getAuth();
     const adminClient = new AnalyticsAdminServiceClient({ auth });
     const [accounts] = await adminClient.listAccounts();
-    return accounts.map(a => ({
-      name: a.name,
-      displayName: a.displayName
-    }));
+    console.log(`[GA4] accounts encontradas: ${accounts.length}`);
+    return accounts.map(a => {
+      console.log(`[GA4] account encontrada: ${a.name} / ${a.displayName}`);
+      return {
+        name: a.name,
+        displayName: a.displayName
+      }
+    });
   } catch (error: any) {
+    console.error("[GA4][ERRO] listando accounts:", error.message);
     if (error.message.includes("Could not load the default credentials")) {
         throw new Error("ADC não configurado. Execute gcloud auth application-default login.");
     }
@@ -58,6 +64,12 @@ export async function getAccounts() {
 
 export async function getProperties(parentAccount?: string) {
   try {
+    if (parentAccount) {
+        console.log(`[GA4] listando properties da account ${parentAccount}`);
+    } else {
+        console.log(`[GA4] listando properties de todas as accounts`);
+    }
+    
     const auth = await getAuth();
     const adminClient = new AnalyticsAdminServiceClient({ auth });
     
@@ -75,6 +87,7 @@ export async function getProperties(parentAccount?: string) {
         });
         
         for (const prop of properties) {
+            console.log(`[GA4] property encontrada: ${prop.name} / ${prop.displayName}`);
             allProperties.push({
                 name: prop.name,
                 displayName: prop.displayName,
@@ -85,12 +98,14 @@ export async function getProperties(parentAccount?: string) {
     
     return allProperties;
   } catch (error: any) {
+    console.error("[GA4][ERRO] listando properties:", error.message);
     throw error;
   }
 }
 
 export async function getEventsFromProperty(propertyId: string, propertyNameStr?: string) {
   try {
+    console.log(`[GA4] buscando eventos da property ${propertyId}`);
     const auth = await getAuth();
     const dataClient = new BetaAnalyticsDataClient({ auth });
     
@@ -115,7 +130,10 @@ export async function getEventsFromProperty(propertyId: string, propertyNameStr?
       ],
     });
 
-    const events = (response.rows || []).map(row => {
+    const rows = response.rows || [];
+    console.log(`[GA4] eventos retornados: ${rows.length}`);
+
+    const events = rows.map(row => {
       const eventName = row.dimensionValues?.[0]?.value || "unknown";
       const eventCount = parseInt(row.metricValues?.[0]?.value || "0", 10);
       return {
@@ -131,13 +149,14 @@ export async function getEventsFromProperty(propertyId: string, propertyNameStr?
     
     return events;
   } catch (error: any) {
-    console.error(`Erro ao buscar eventos para a propriedade ${propertyId}:`, error.message);
+    console.error(`[GA4][ERRO] buscando eventos para a propriedade ${propertyId}:`, error.message);
     throw error;
   }
 }
 
 export async function getAllEvents() {
     try {
+        console.log(`[GA4] buscando eventos de TODAS as properties`);
         const properties = await getProperties();
         let allEvents: any[] = [];
         
@@ -148,11 +167,12 @@ export async function getAllEvents() {
                 allEvents = allEvents.concat(events);
             } catch (e) {
                 // If one property fails, we skip and continue with the others
-                console.warn(`Pulando property ${prop.propertyId} devido a erro.`);
+                console.warn(`[GA4] Pulando property ${prop.propertyId} devido a erro.`);
             }
         }
         return allEvents;
     } catch (error: any) {
+        console.error(`[GA4][ERRO] buscando eventos all:`, error.message);
         throw error;
     }
 }
