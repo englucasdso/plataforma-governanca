@@ -52,7 +52,14 @@ export interface Insights {
   };
 }
 
-export type UserRole = 'admin' | 'gestor_360' | 'estrategico' | 'artefatos' | 'eventos';
+export type UserRole =
+  | "admin"
+  | "gestor360"
+  | "estrategico"
+  | "artefatos"
+  | "eventos";
+
+export type UserStatus = "ativo" | "inativo";
 
 export interface User {
   id: string;
@@ -60,7 +67,7 @@ export interface User {
   nickname?: string;
   email: string;
   role: UserRole;
-  status: 'active' | 'inactive';
+  status: UserStatus;
   createdAt: string;
   updatedAt?: string;
   lastAccess?: string;

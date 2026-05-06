@@ -10,8 +10,8 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import searchRoutes from "./routes/search.routes.js";
-import usersRoutes from "./routes/users.routes.js";
+import searchRoutes from "./routes/search.routes";
+import usersRoutes from "./routes/users.routes";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

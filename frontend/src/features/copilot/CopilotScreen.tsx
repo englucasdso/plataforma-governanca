@@ -50,10 +50,10 @@ export function CopilotScreen({ userName, role, onNavigate, onGenerateSummary }:
     }
   }, [showOptions]);
 
-  const canSeeHome = role === 'admin' || role === 'gestor_360' || role === 'estrategico';
-  const canSeeArtifacts = role === 'admin' || role === 'gestor_360' || role === 'artefatos';
-  const canSeeEvents = role === 'admin' || role === 'gestor_360' || role === 'eventos';
-  const canSeeSummary = role === 'admin' || role === 'gestor_360' || role === 'estrategico';
+  const canSeeHome = role === 'admin' || role === 'gestor360' || role === 'estrategico';
+  const canSeeArtifacts = role === 'admin' || role === 'gestor360' || role === 'artefatos';
+  const canSeeEvents = role === 'admin' || role === 'gestor360' || role === 'eventos';
+  const canSeeSummary = role === 'admin' || role === 'gestor360' || role === 'estrategico';
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh]">

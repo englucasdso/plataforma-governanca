@@ -51,10 +51,9 @@ Forneça a análise executiva em formato JSON, preenchendo cada chave solicitada
                 
                 // Inicializa o Google GenAI via Vertex AI
                 const ai = new GoogleGenAI({ 
-                    vertexai: { 
-                        project: PROJECT_ID, 
-                        location: location 
-                    } 
+                    project: PROJECT_ID, 
+                    location: location,
+                    vertexai: true
                 });
 
                 const response = await ai.models.generateContent({

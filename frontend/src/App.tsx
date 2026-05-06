@@ -32,13 +32,15 @@ const INITIAL_USERS: UserType[] = [
     name: 'Lucas Admin',
     email: 'lucas.doliveira@bradesco.com.br',
     role: 'admin',
+    status: 'ativo',
     createdAt: new Date().toISOString()
   },
   {
     id: '2',
     name: 'Usuário Teste',
     email: 'teste@bradesco.com.br',
-    role: 'user',
+    role: 'gestor360',
+    status: 'ativo',
     createdAt: new Date().toISOString()
   }
 ];
@@ -357,7 +359,7 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
-  const [formData, setFormData] = useState({ name: '', nickname: '', email: '', role: 'user' as UserRole, status: 'active' as 'active' | 'inactive' });
+  const [formData, setFormData] = useState({ name: '', nickname: '', email: '', role: 'gestor360' as UserRole, status: 'ativo' as 'ativo' | 'inativo' });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -369,12 +371,12 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
       onAddUser(formData);
       setShowAddForm(false);
     }
-    setFormData({ name: '', nickname: '', email: '', role: 'user', status: 'active' });
+    setFormData({ name: '', nickname: '', email: '', role: 'gestor360', status: 'ativo' });
   };
 
   const startEdit = (user: UserType) => {
     setEditingUser(user);
-    setFormData({ name: user.name, nickname: user.nickname || '', email: user.email, role: user.role, status: user.status || 'active' });
+    setFormData({ name: user.name, nickname: user.nickname || '', email: user.email, role: user.role, status: user.status || 'ativo' });
     setShowAddForm(true);
   };
 
@@ -392,7 +394,7 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
           <div className="flex items-center gap-4">
              {!showAddForm && (
                 <button 
-                  onClick={() => { setShowAddForm(true); setEditingUser(null); setFormData({ name: '', email: '', role: 'user' }); }}
+                  onClick={() => { setShowAddForm(true); setEditingUser(null); setFormData({ name: '', nickname: '', email: '', role: 'gestor360', status: 'ativo' }); }}
                   className="flex items-center gap-2 px-6 py-3 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-xl shadow-red-200"
                    style={{ background: 'linear-gradient(90deg, #7D046D 0%, #cc092f 100%)' }}
                 >
@@ -448,7 +450,7 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
                   onChange={e => setFormData({ ...formData, role: e.target.value as UserRole })}
                   className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-bradesco-red transition-all font-medium text-gray-800 appearance-none"
                 >
-                  <option value="gestor_360">GESTOR 360 (Acesso Completo)</option>
+                  <option value="gestor360">GESTOR 360 (Acesso Completo)</option>
                   <option value="estrategico">ESTRATÉGICO (Visão Estratégica)</option>
                   <option value="artefatos">ARTEFATOS (Hub de Artefatos)</option>
                   <option value="eventos">EVENTOS (Hub de Eventos)</option>
@@ -459,11 +461,11 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Status</label>
                 <select 
                   value={formData.status}
-                  onChange={e => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
+                  onChange={e => setFormData({ ...formData, status: e.target.value as 'ativo' | 'inativo' })}
                   className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-bradesco-red transition-all font-medium text-gray-800 appearance-none"
                 >
-                  <option value="active">ATIVO</option>
-                  <option value="inactive">INATIVO</option>
+                  <option value="ativo">ATIVO</option>
+                  <option value="inativo">INATIVO</option>
                 </select>
               </div>
               <div className="flex gap-4 pt-4">
@@ -511,8 +513,8 @@ const AdminUsers = ({ users, onAddUser, onUpdateUser, onDeleteUser, onClose }: {
                       </span>
                     </td>
                     <td className="p-6">
-                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${u.status === 'active' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                        {u.status === 'active' ? 'ATIVO' : 'INATIVO'}
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${u.status === 'ativo' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                        {u.status === 'ativo' ? 'ATIVO' : 'INATIVO'}
                       </span>
                     </td>
                     <td className="p-6 text-xs text-gray-500 space-y-1">
@@ -546,7 +548,7 @@ const Login = ({ onLogin, users }: { onLogin: (u: UserType) => void, users: User
     e.preventDefault();
     const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (user) {
-      if (user.status !== 'active') {
+      if (user.status !== 'ativo') {
         setError("Seu acesso está inativo. Procure um administrador.");
       } else {
         onLogin(user);
@@ -802,7 +804,7 @@ export default function App() {
   const [results, setResults] = useState<Artifact[]>([]);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
-  const [appState, setAppState] = useState<"copilot" | "home" | "catalog" | "initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing" | "events_capture">("copilot");
+  const [appState, setAppState] = useState<"copilot" | "home" | "catalog" | "initial" | "results" | "decision" | "insights" | "empty" | "inventory_table" | "graph" | "auth" | "syncing" | "events_capture" | "operational_insights">("copilot");
   const [showSummary, setShowSummary] = useState(false);
   const [capturePlatform, setCapturePlatform] = useState<string | null>(null);
   const [syncCredentials, setSyncCredentials] = useState({ username: "", password: "" });
@@ -1269,12 +1271,12 @@ export default function App() {
     setAppState("inventory_table");
     setTableFilter(id);
     setInventoryFilters({
-      tipo_mapa: 'all',
-      produto: 'all',
-      subproduto: 'all',
-      responsavel: 'all',
-      status: 'all',
-      ano: 'all'
+      tipo_mapa: [],
+      produto: [],
+      subproduto: [],
+      responsavel: [],
+      status: [],
+      ano: []
     });
     
     setTimeout(() => {
@@ -1429,7 +1431,7 @@ export default function App() {
     const role = currentUser.role;
     const state = appState;
     if (state === 'auth' || state === 'syncing' || state === 'copilot') return true;
-    if (role === 'admin' || role === 'gestor_360') return true;
+    if (role === 'admin' || role === 'gestor360') return true;
     if (role === 'estrategico') return ['home'].includes(state);
     if (role === 'artefatos') return ['initial', 'results', 'decision', 'insights', 'empty', 'inventory_table', 'graph', 'catalog', 'operational_insights'].includes(state);
     if (role === 'eventos') return ['events_capture'].includes(state);
@@ -1439,7 +1441,7 @@ export default function App() {
   return (
     <main className="app flex flex-col min-h-screen bg-gray-50/30 w-full h-full relative"
       onClick={(e) => {
-        if (!e.target.closest('.user-menu-container') && !e.target.closest('.user-menu-btn')) {
+        if (!(e.target as Element).closest('.user-menu-container') && !(e.target as Element).closest('.user-menu-btn')) {
           setShowUserMenu(false);
         }
       }}
