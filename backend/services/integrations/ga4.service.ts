@@ -10,11 +10,12 @@ function setupProxy() {
   const proxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.https_proxy || process.env.http_proxy || process.env.CORPORATE_PROXY;
   if (proxy) {
     console.log("[GA4] proxy detectado");
-    console.log(`[GA4] usando proxy corporativo: ${proxy}`);
+    console.log(`[GA4] proxy usado: ${proxy}`);
     process.env.HTTPS_PROXY = proxy;
     process.env.HTTP_PROXY = proxy;
     process.env.https_proxy = proxy;
     process.env.http_proxy = proxy;
+    process.env.GRPC_PROXY = proxy;
     process.env.grpc_proxy = proxy;
   }
   
@@ -36,13 +37,14 @@ async function getAuth() {
   });
   
   cachedAuth = auth;
+  console.log("[GA4] ADC OK");
   return auth;
 }
 
 function handleProxyError(error: any) {
   const errorMsg = error.message || "";
   if (errorMsg.includes("UNAVAILABLE") || errorMsg.includes("No connection established") || errorMsg.includes("ETIMEDOUT") || errorMsg.includes("timeout")) {
-    return new Error(`Autenticação OK, mas conexão com Google Analytics foi bloqueada por proxy/rede corporativa. (Detalhes: ${errorMsg})`);
+    return new Error(`Autenticação OK, mas a rede corporativa bloqueou a conexão com Google Analytics.`);
   }
   return error;
 }
@@ -73,7 +75,9 @@ export async function getAccounts() {
   try {
     console.log("[GA4] listando accounts");
     const auth = await getAuth();
-    const adminClient = new AnalyticsAdminServiceClient({ auth });
+    console.log("[GA4] usando REST fallback, não gRPC");
+    console.log("[GA4] listando accounts via REST");
+    const adminClient = new AnalyticsAdminServiceClient({ auth, fallback: true });
     const [accounts] = await adminClient.listAccounts();
     console.log(`[GA4] accounts encontradas: ${accounts.length}`);
     return accounts.map(a => {
@@ -101,7 +105,9 @@ export async function getProperties(parentAccount?: string) {
     }
     
     const auth = await getAuth();
-    const adminClient = new AnalyticsAdminServiceClient({ auth });
+    console.log("[GA4] usando REST fallback, não gRPC");
+    console.log("[GA4] listando properties via REST");
+    const adminClient = new AnalyticsAdminServiceClient({ auth, fallback: true });
     
     // If parentAccount isn't provided, fetch all accounts first
     const accountsToList = parentAccount 
@@ -137,7 +143,9 @@ export async function getEventsFromProperty(propertyId: string, propertyNameStr?
   try {
     console.log(`[GA4] buscando eventos da property ${propertyId}`);
     const auth = await getAuth();
-    const dataClient = new BetaAnalyticsDataClient({ auth });
+    console.log("[GA4] usando REST fallback, não gRPC");
+    console.log("[GA4] listando eventos via REST");
+    const dataClient = new BetaAnalyticsDataClient({ auth, fallback: true });
     
     // Default last 30 days
     const [response] = await dataClient.runReport({

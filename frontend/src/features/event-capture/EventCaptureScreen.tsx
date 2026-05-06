@@ -34,6 +34,9 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   
   const [ga4Events, setGa4Events] = useState<any[]>([]);
   
+  const [manualPropertyId, setManualPropertyId] = useState<string>('');
+  const [isManualMode, setIsManualMode] = useState<boolean>(false);
+  
   const [loadingState, setLoadingState] = useState<"status" | "accounts" | "properties" | "events" | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -106,7 +109,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
 
   // Fetch events when a property is selected
   useEffect(() => {
-      if (selectedPlatform === "GA4" && selectedPropertyId) {
+      if (selectedPlatform === "GA4" && selectedPropertyId && !isManualMode) {
           setLoadingState("events");
           setErrorMsg(null);
           setGa4Events([]);
@@ -127,10 +130,34 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 setErrorMsg("Falha ao comunicar com o servidor (events).");
                 setLoadingState(null);
             });
-      } else {
+      } else if (!isManualMode) {
           setGa4Events([]);
       }
-  }, [selectedPropertyId, selectedPlatform]);
+  }, [selectedPropertyId, selectedPlatform, isManualMode]);
+
+  const handleManualFetch = () => {
+      if (!manualPropertyId.trim()) return;
+      setLoadingState("events");
+      setErrorMsg(null);
+      setGa4Events([]);
+      
+      fetch(`/api/events/ga4/events?propertyId=${manualPropertyId}`)
+        .then(async res => {
+            const data = await res.json();
+            if (res.ok && Array.isArray(data)) {
+                setGa4Events(data);
+            } else {
+                console.error("Failed to load events:", data);
+                setErrorMsg(data.error || "Erro ao buscar eventos GA4.");
+            }
+            setLoadingState(null);
+        })
+        .catch(err => {
+            console.error("Error fetching GA4 events", err);
+            setErrorMsg("Falha ao comunicar com o servidor (events).");
+            setLoadingState(null);
+        });
+  };
 
   const filteredEvents = selectedPlatform === "GA4" 
     ? ga4Events.map((evt, idx) => ({
@@ -157,29 +184,52 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
         {selectedPlatform === "GA4" && ga4Status?.connected && (
             <div className="flex flex-col gap-4 mt-6">
                 <div className="flex gap-4 items-center flex-wrap">
-                    <select 
-                        value={selectedAccountId}
-                        onChange={(e) => setSelectedAccountId(e.target.value)}
-                        className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
-                        disabled={loadingState === "accounts"}
-                    >
-                        <option value="">1. Selecione uma Conta</option>
-                        {accounts.map(a => (
-                            <option key={a.name} value={a.name}>{a.displayName || a.name}</option>
-                        ))}
-                    </select>
+                    {!isManualMode ? (
+                      <>
+                        <select 
+                            value={selectedAccountId}
+                            onChange={(e) => setSelectedAccountId(e.target.value)}
+                            className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
+                            disabled={loadingState === "accounts"}
+                        >
+                            <option value="">1. Selecione uma Conta</option>
+                            {accounts.map(a => (
+                                <option key={a.name} value={a.name}>{a.displayName || a.name}</option>
+                            ))}
+                        </select>
 
-                    <select 
-                        value={selectedPropertyId}
-                        onChange={(e) => setSelectedPropertyId(e.target.value)}
-                        className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
-                        disabled={!selectedAccountId || loadingState === "properties"}
-                    >
-                        <option value="">2. Selecione uma Propriedade</option>
-                        {properties.map(p => (
-                            <option key={p.propertyId} value={p.propertyId}>{p.displayName || p.name}</option>
-                        ))}
-                    </select>
+                        <select 
+                            value={selectedPropertyId}
+                            onChange={(e) => setSelectedPropertyId(e.target.value)}
+                            className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
+                            disabled={!selectedAccountId || loadingState === "properties"}
+                        >
+                            <option value="">2. Selecione uma Propriedade</option>
+                            {properties.map(p => (
+                                <option key={p.propertyId} value={p.propertyId}>{p.displayName || p.name}</option>
+                            ))}
+                        </select>
+                        <button onClick={() => setIsManualMode(true)} className="text-sm font-medium text-gray-500 underline ml-2">Usar ID Manual</button>
+                      </>
+                    ) : (
+                      <>
+                        <input 
+                            type="text" 
+                            value={manualPropertyId}
+                            onChange={e => setManualPropertyId(e.target.value)}
+                            placeholder="Property ID (Ex: 123456789)"
+                            className="pl-4 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
+                        />
+                        <button 
+                            onClick={handleManualFetch}
+                            disabled={loadingState === "events"}
+                            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
+                        >
+                            Buscar Eventos
+                        </button>
+                        <button onClick={() => setIsManualMode(false)} className="text-sm font-medium text-gray-500 underline ml-2">Voltar para Seleção</button>
+                      </>
+                    )}
                 </div>
                 
                 {loadingState && loadingState !== "status" && (
