@@ -1828,26 +1828,32 @@ export default function App() {
                   <Clock className="w-5 h-5 text-gray-400" />
                   <h3 className="font-bold text-gray-900">Atividades Recentes</h3>
                 </div>
-                <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto space-y-4 pr-3 custom-scrollbar">
                   {recentActivities.length > 0 ? recentActivities.map((item, idx) => (
                     <div 
                       key={idx} 
-                      className="flex gap-4 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-xl transition-colors"
-                      onClick={() => handleActivityClick(item.artifact)}
-                      title="Ver mapa no Hub"
+                      className="group flex gap-4 cursor-pointer hover:bg-gray-50/80 p-3 -ml-3 rounded-2xl transition-all duration-300"
+                      onClick={() => window.open(item.link, '_blank')}
+                      title="Abrir mapa em nova guia"
                     >
-                      <div className={`w-8 h-8 rounded-full ${item.color} flex items-center justify-center shrink-0`}>
-                        <RefreshCw className="w-4 h-4 text-purple-600" />
+                      <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 group-hover:bg-purple-50 group-hover:border-purple-100 transition-colors">
+                        <RefreshCw className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-900 font-medium leading-snug break-all line-clamp-2 hover:text-purple-600 transition-colors">
-                          {item.desc}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 font-bold leading-snug truncate group-hover:text-purple-600 transition-colors">
+                          {item.title}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">{item.date}</p>
+                        <div className="flex items-center gap-2 mt-1.5 text-[11px] font-medium text-gray-500">
+                          <span>{item.date}</span>
+                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                          <span className="truncate">{item.responsavel}</span>
+                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                          <span className="text-purple-600">{item.status}</span>
+                        </div>
                       </div>
                     </div>
                   )) : (
-                    <div className="text-sm text-gray-400 p-4">Carregando atividades...</div>
+                    <div className="text-sm text-gray-400 font-medium p-4 text-center">Nenhuma atividade!</div>
                   )}
                 </div>
               </div>
@@ -1860,32 +1866,52 @@ export default function App() {
                     <h3 className="font-bold text-gray-900">Evolução de Atualizações</h3>
                   </div>
                   <div className="flex gap-2">
-                    <span className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-bold">Por dia</span>
+                    <span className="px-4 py-1.5 bg-gray-900 text-white rounded-full text-[11px] font-bold uppercase tracking-wider">Histórico Real</span>
                   </div>
                 </div>
-                <div className="flex-1 flex items-end justify-between gap-2 px-4 pb-4">
+                
+                {/* Scroll horizontally on smaller screens, stretch on large */}
+                <div className="flex-1 w-full overflow-x-auto overflow-y-hidden custom-scrollbar pb-2">
+                  <div className="flex items-end justify-between h-full min-w-[600px] gap-2 px-2">
                   {chartData.length > 0 ? chartData.map((bar, idx) => (
                     <div 
                       key={idx} 
-                      className="flex flex-col items-center gap-3 flex-1 group cursor-pointer"
+                      className="flex flex-col items-center gap-3 flex-1 group cursor-pointer h-full relative"
                       onClick={() => handleBarClick(bar.items)}
-                      title={bar.items.length > 0 ? `${bar.value} atualizações (${bar.items.map((i: any) => i.titulo).join(', ')})` : 'Sem atualizações'}
                     >
-                      <div className="w-full bg-red-50 rounded-t-xl relative flex justify-center h-full items-end overflow-hidden group-hover:bg-red-100 transition-colors">
-                        <div 
-                          className={`w-full bg-bradesco-red rounded-t-xl opacity-80 group-hover:opacity-100 transition-all duration-500 relative ${bar.value === 0 ? 'min-h-[4px]' : ''}`}
-                          style={{ height: bar.height }}
-                        >
-                          <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-red-700 opacity-0 group-hover:opacity-100 transition-opacity ${bar.value === 0 ? 'hidden' : ''}`}>
-                            {bar.value}
-                          </div>
-                        </div>
+                      {/* Tooltip on Hover */}
+                      <div className="absolute -top-10 scale-95 opacity-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 z-10 pointer-events-none bg-gray-900 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-xl whitespace-nowrap flex flex-col items-center">
+                        <span>{bar.value} atualizações</span>
+                        {bar.items.length > 0 && <span className="text-gray-400 text-[10px] font-medium mt-1 max-w-[150px] truncate">{bar.items.map((i:any)=>i.titulo).join(', ')}</span>}
+                        <div className="absolute -bottom-1 w-2 h-2 bg-gray-900 rotate-45"></div>
                       </div>
-                      <span className="text-xs font-bold text-gray-400 whitespace-nowrap">{bar.label}</span>
+
+                      {/* Number permanently visible above bar if desired, but user wants elegant minimalist. Let's make it visible on hover or always, prompt said "aparecer no hover ou acima ds barra". Let's place it just above the bar. */}
+                      <div className="flex-1 flex flex-col justify-end items-center w-full relative">
+                         {bar.value > 0 && (
+                            <span className="text-[10px] font-bold text-gray-400 mb-2 opacity-0 group-hover:opacity-100 group-hover:text-purple-600 transition-all group-hover:-translate-y-1">
+                              {bar.value}
+                            </span>
+                         )}
+                         <div className="w-full flex justify-center h-full items-end relative">
+                            {/* The line track */}
+                            <div className="absolute w-[6px] bottom-0 bg-gray-50 h-full rounded-t-full transition-colors group-hover:bg-gray-100"></div>
+                            {/* The actual filled bar */}
+                            <div 
+                              className={`w-[6px] rounded-t-full z-10 opacity-70 group-hover:opacity-100 transition-all duration-500 relative bg-gradient-to-t from-gray-300 to-gray-400 group-hover:from-purple-500 group-hover:to-purple-400 ${bar.value === 0 ? 'min-h-[4px] from-gray-200 to-gray-200' : ''}`}
+                              style={{ height: bar.height }}
+                            ></div>
+                         </div>
+                      </div>
+                      
+                      <span className={`text-[10px] font-bold whitespace-nowrap transition-colors ${idx === chartData.length - 1 ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-900'}`}>
+                        {idx === chartData.length - 1 ? 'Hoje' : bar.label}
+                      </span>
                     </div>
                   )) : (
-                    <div className="w-full flex items-center justify-center text-gray-400 text-sm">Gerando gráfico...</div>
+                    <div className="w-full flex items-center justify-center text-gray-400 text-sm font-medium">Gerando evolução...</div>
                   )}
+                  </div>
                 </div>
               </div>
             </div>
