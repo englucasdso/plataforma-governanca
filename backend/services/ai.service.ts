@@ -3,12 +3,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 const PROJECT_ID = "sala-performance-eagro";
 const REGIOES_PARA_TESTAR = ["us-central1", "southamerica-east1", "us-east4", "us-east1"];
 const MODELOS_PARA_TESTAR = [
-    "gemini-2.5-flash", 
-    "gemini-2.5-pro", 
-    "gemini-3.0-pro", 
-    "gemini-3.1-pro", 
-    "gemini-1.5-flash", 
-    "gemini-1.5-pro", 
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-3.0-pro",
+    "gemini-3.1-pro",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
     "gemini-pro"
 ];
 
@@ -18,11 +18,13 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 export async function generateInsightsAnalysis(artifacts: any[]) {
     // Reduz o payload para economizar tokens e tempo de processamento
     const payloadEnvio = artifacts.map(a => ({
-        t: a.titulo, // titulo
-        p: a.produto, // produto
-        s: a.subproduto, // subproduto
-        r: a.responsavel, // responsavel
-        d: a.ultima_atualizacao // data
+        titulo: a.titulo,
+        produto: a.produto,
+        subproduto: a.subproduto,
+        responsavel: a.responsavel,
+        ultima_atualizacao: a.ultima_atualizacao,
+        tipo: a.tipo,
+        link: a.link
     }));
 
     const systemInstruction = `Você é um Cientista de Dados Executivo analisando um banco de artefatos de dados e sistemas (Hub de Artefatos).
@@ -33,6 +35,8 @@ Considere o seguinte:
 - Avalie documentação desatualizada e ausência de responsáveis.
 - Identifique possíveis duplicidades.
 - Verifique a distribuição por produto e principais riscos de governança.
+
+Retorne SOMENTE o JSON solicitado, sem markdown ou texto adicional.
 `;
 
     const prompt = `Resumo da busca e quantidade: Foram retornados ${payloadEnvio.length} artefatos.
@@ -41,17 +45,13 @@ ${JSON.stringify(payloadEnvio)}
 
 Forneça a análise executiva em formato JSON, preenchendo cada chave solicitada com precisão.`;
 
-    let lastError = null;
-
-    // Tenta cada combinação de região e modelo
     for (const location of REGIOES_PARA_TESTAR) {
         for (const model of MODELOS_PARA_TESTAR) {
             try {
                 console.log(`[AI Service] Testando Vertex AI - Região: ${location} | Modelo: ${model}`);
                 
-                // Inicializa o Google GenAI via Vertex AI
                 const ai = new GoogleGenAI({ 
-                    project: PROJECT_ID, 
+                    project: PROJECT_ID,
                     location: location,
                     vertexai: true
                 });
@@ -93,23 +93,22 @@ Forneça a análise executiva em formato JSON, preenchendo cada chave solicitada
                     return JSON.parse(response.text);
                 }
             } catch (err: any) {
-                lastError = err;
                 console.warn(`[AI Service] Falha na combinação [${location} - ${model}]: ${err.message}. Avançando para a próxima...`);
             }
         }
     }
-
-    console.error("[AI Service] Todas as combinações de Região/Modelo do Vertex AI falharam. Acionando Fallback Local.", lastError);
     
-    // Fallback Local se o Vertex AI não acessar (Ex: falta de credenciais ADC no ambiente atual)
+    console.error("[AI Service] Todas as combinações de Região/Modelo falharam. Acionando fallback local.");
+    
+    // Fallback Local
     return {
-        resumoExecutivo: `Análise Local (Fallback de IA): Foram analisados ${artifacts.length} artefatos. A conexão com o Vertex AI do projeto ${PROJECT_ID} não pôde ser estabelecida no momento devido a permissões de ambiente.`,
+        resumoExecutivo: `Análise Local (Fallback de IA): Foram analisados ${artifacts.length} artefatos. A conexão com o Vertex AI não pôde ser estabelecida no momento.`,
         saudeGeral: "Pela amostra de dados, os artefatos estão listados com campos básicos preenchidos. É essencial monitorar a taxa de preenchimento dos subprodutos e responsáveis.",
         pontosAtencao: [
-            "Conexão com Vertex AI requer ADC (Application Default Credentials) configurado no servidor atual.",
-            "Certifique-se que a Service Account da Cloud Run tenha permissões 'Vertex AI User'",
+            "Conexão com a inteligência artificial (Vertex AI) falhou em todas as regiões testadas.",
+            "Certifique-se que o Application Default Credentials (ADC) e permissões de Vertex AI User estão configurados corretamente.",
             "Alguns artefatos críticos podem necessitar revisão humana."
         ],
-        recomendacaoAcao: "Valide as configurações de rede e permissões do Google Cloud IAM para habilitar a inteligência do Vertex AI em produção."
+        recomendacaoAcao: "Valide as configurações do IAM da Service Account para habilitar a inteligência do Gemini em produção."
     };
 }

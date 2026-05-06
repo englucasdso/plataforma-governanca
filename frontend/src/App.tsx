@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, AlertTriangle, Target, Network, Filter, CheckCircle2, AlertCircle, Clock, User, Info, Shield, LogOut, Trash2, Plus, Settings, Landmark, LayoutList, RefreshCw, Check, Loader2, KeyRound, Activity, ArrowRight, Search, ChevronDown, ChevronUp, ChevronLeft, ExternalLink, Download, Sparkles } from "lucide-react";
 import Xarrow, { Xwrapper } from 'react-xarrows';
+import { getOperationalInsights } from "./utils/inventoryHelpers";
 import { fetchInventory, searchContent, fetchUsers, createUser, updateUser, deleteUser } from "./services/api";
 import { Artifact, Insights, SearchResponse, User as UserType, UserRole } from "./types";
 import { normalizar, formatDataBR, getFilteredInsights } from "./utils/helpers";
@@ -813,6 +814,33 @@ export default function App() {
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('last_sync'));
   const [showExportModal, setShowExportModal] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
+
+  const [fullInventory, setFullInventory] = useState<Artifact[]>([]);
+
+  useEffect(() => {
+    if (appState === "operational_insights" && fullInventory.length === 0) {
+      setLoading(true);
+      fetchInventory()
+        .then((res) => {
+          setFullInventory(res.resultados);
+        })
+        .catch((e) => console.error(e))
+        .finally(() => setLoading(false));
+    }
+  }, [appState, fullInventory.length]);
+
+  const { recentActivities, chartData } = useMemo(() => getOperationalInsights(fullInventory), [fullInventory]);
+
+  const handleBarClick = (items: Artifact[]) => {
+    if(items.length === 0) return;
+    setResults(items);
+    setAppState("results");
+  };
+
+  const handleActivityClick = (item: Artifact) => {
+    setResults([item]);
+    setAppState("results");
+  };
   
   const [geminiAnalysis, setGeminiAnalysis] = useState<any>(null);
   const [loadingGemini, setLoadingGemini] = useState(false);
@@ -1497,7 +1525,7 @@ export default function App() {
                   Menu
                 </button>
               )}
-              {appState !== 'copilot' && appState !== 'home' && appState !== 'initial' && appState !== 'events_capture' && (
+              {appState !== 'copilot' && appState !== 'home' && appState !== 'initial' && (
                 <button 
                   onClick={handleBack}
                   className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-100 shadow-sm hover:border-gray-300 hover:text-gray-900 transition-all font-bold text-[10px] uppercase tracking-wider h-10"
@@ -1801,23 +1829,26 @@ export default function App() {
                   <h3 className="font-bold text-gray-900">Atividades Recentes</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-                  {[
-                    { date: "Hoje, 14:30", desc: "Mapa Cartões atualizado por Lucas", icon: <RefreshCw className="w-4 h-4 text-purple-600" />, color: "bg-purple-50" },
-                    { date: "Hoje, 10:15", desc: "Novo mapa Abertura PF criado por Ana", icon: <Plus className="w-4 h-4 text-green-600" />, color: "bg-green-50" },
-                    { date: "Ontem, 16:45", desc: "Inconsistência resolvida no Empréstimos", icon: <CheckCircle2 className="w-4 h-4 text-blue-600" />, color: "bg-blue-50" },
-                    { date: "Ontem, 09:20", desc: "Mapa Seguros atualizado por João", icon: <RefreshCw className="w-4 h-4 text-purple-600" />, color: "bg-purple-50" },
-                    { date: "24/04, 11:00", desc: "Revisão geral de tags GA4 concluída", icon: <Check className="w-4 h-4 text-green-600" />, color: "bg-green-50" },
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex gap-4">
+                  {recentActivities.length > 0 ? recentActivities.map((item, idx) => (
+                    <div 
+                      key={idx} 
+                      className="flex gap-4 cursor-pointer hover:bg-gray-50 p-2 -ml-2 rounded-xl transition-colors"
+                      onClick={() => handleActivityClick(item.artifact)}
+                      title="Ver mapa no Hub"
+                    >
                       <div className={`w-8 h-8 rounded-full ${item.color} flex items-center justify-center shrink-0`}>
-                        {item.icon}
+                        <RefreshCw className="w-4 h-4 text-purple-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-gray-900 font-medium leading-snug">{item.desc}</p>
+                        <p className="text-sm text-gray-900 font-medium leading-snug break-all line-clamp-2 hover:text-purple-600 transition-colors">
+                          {item.desc}
+                        </p>
                         <p className="text-xs text-gray-400 mt-1">{item.date}</p>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-sm text-gray-400 p-4">Carregando atividades...</div>
+                  )}
                 </div>
               </div>
 
@@ -1833,30 +1864,28 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex-1 flex items-end justify-between gap-2 px-4 pb-4">
-                  {/* Mock simple bar chart */}
-                  {[
-                    { label: "Dom", height: "10%", value: 2 },
-                    { label: "Seg", height: "40%", value: 12 },
-                    { label: "Ter", height: "70%", value: 24 },
-                    { label: "Qua", height: "60%", value: 18 },
-                    { label: "Qui", height: "100%", value: 32 },
-                    { label: "Sex", height: "80%", value: 26 },
-                    { label: "Sáb", height: "20%", value: 5 },
-                  ].map((bar, idx) => (
-                    <div key={idx} className="flex flex-col items-center gap-3 flex-1 group">
+                  {chartData.length > 0 ? chartData.map((bar, idx) => (
+                    <div 
+                      key={idx} 
+                      className="flex flex-col items-center gap-3 flex-1 group cursor-pointer"
+                      onClick={() => handleBarClick(bar.items)}
+                      title={bar.items.length > 0 ? `${bar.value} atualizações (${bar.items.map((i: any) => i.titulo).join(', ')})` : 'Sem atualizações'}
+                    >
                       <div className="w-full bg-red-50 rounded-t-xl relative flex justify-center h-full items-end overflow-hidden group-hover:bg-red-100 transition-colors">
                         <div 
-                          className="w-full bg-bradesco-red rounded-t-xl opacity-80 group-hover:opacity-100 transition-all duration-500 relative"
+                          className={`w-full bg-bradesco-red rounded-t-xl opacity-80 group-hover:opacity-100 transition-all duration-500 relative ${bar.value === 0 ? 'min-h-[4px]' : ''}`}
                           style={{ height: bar.height }}
                         >
-                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-red-700 opacity-0 group-hover:opacity-100 transition-opacity ${bar.value === 0 ? 'hidden' : ''}`}>
                             {bar.value}
                           </div>
                         </div>
                       </div>
-                      <span className="text-xs font-bold text-gray-400">{bar.label}</span>
+                      <span className="text-xs font-bold text-gray-400 whitespace-nowrap">{bar.label}</span>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="w-full flex items-center justify-center text-gray-400 text-sm">Gerando gráfico...</div>
+                  )}
                 </div>
               </div>
             </div>
