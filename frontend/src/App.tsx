@@ -1843,12 +1843,12 @@ export default function App() {
                         <p className="text-sm text-gray-900 font-bold leading-snug truncate group-hover:text-purple-600 transition-colors">
                           {item.title}
                         </p>
-                        <div className="flex items-center gap-2 mt-1.5 text-[11px] font-medium text-gray-500">
-                          <span>{item.date}</span>
-                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                          <span className="truncate">{item.responsavel}</span>
-                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                          <span className="text-purple-600">{item.status}</span>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[11px] font-medium text-gray-500">
+                          <span className="whitespace-nowrap">{item.date}</span>
+                          <span className="w-1 h-1 rounded-full bg-gray-300 shrink-0"></span>
+                          <span className="truncate max-w-[120px]">{item.responsavel}</span>
+                          <span className="w-1 h-1 rounded-full bg-gray-300 shrink-0"></span>
+                          <span className="text-purple-600 font-bold whitespace-nowrap">{item.status}</span>
                         </div>
                       </div>
                     </div>
@@ -1870,41 +1870,59 @@ export default function App() {
                   </div>
                 </div>
                 
-                {/* Scroll horizontally on smaller screens, stretch on large */}
-                <div className="flex-1 w-full overflow-x-auto overflow-y-hidden custom-scrollbar pb-2">
-                  <div className="flex items-end justify-between h-full min-w-[600px] gap-2 px-2">
+                {/* Updated Elegant Graph Area avoiding overflow */}
+                <div className="flex-1 w-full pt-8 relative flex flex-col justify-end">
+                  <div className="flex items-end justify-between h-full gap-2 sm:gap-4 px-2 sm:px-6 w-full relative">
                   {chartData.length > 0 ? chartData.map((bar, idx) => (
                     <div 
                       key={idx} 
-                      className="flex flex-col items-center gap-3 flex-1 group cursor-pointer h-full relative"
+                      className="flex flex-col items-center flex-1 group cursor-pointer h-full relative"
                       onClick={() => handleBarClick(bar.items)}
                     >
                       {/* Tooltip on Hover */}
-                      <div className="absolute -top-10 scale-95 opacity-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 z-10 pointer-events-none bg-gray-900 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-xl whitespace-nowrap flex flex-col items-center">
-                        <span>{bar.value} atualizações</span>
-                        {bar.items.length > 0 && <span className="text-gray-400 text-[10px] font-medium mt-1 max-w-[150px] truncate">{bar.items.map((i:any)=>i.titulo).join(', ')}</span>}
-                        <div className="absolute -bottom-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+                      <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 scale-95 opacity-0 group-[&:hover]:opacity-100 group-[&:hover]:scale-100 transition-all duration-300 z-50 pointer-events-none bg-gray-900 text-white px-4 py-3 rounded-2xl text-xs font-medium shadow-2xl min-w-[200px] flex flex-col gap-2">
+                        <div className="font-bold text-sm border-b border-gray-700/50 pb-2 mb-1 flex justify-between items-center gap-4">
+                          <span className="text-gray-300">{idx === chartData.length - 1 ? 'Hoje' : bar.label}</span>
+                          <span className="text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md">{bar.value} atlz</span>
+                        </div>
+                        {bar.items.length > 0 ? (
+                          <div className="flex flex-col gap-2">
+                            {bar.items.slice(0, 3).map((item: any, i: number) => (
+                              <span key={i} className="truncate text-gray-200 text-[11px] flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></span>
+                                {item.titulo}
+                              </span>
+                            ))}
+                            {bar.items.length > 3 && (
+                              <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mt-1 px-3">
+                                + {bar.items.length - 3} itens alterados
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 text-[11px] italic">Nenhuma atividade neste dia</span>
+                        )}
+                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45"></div>
                       </div>
 
-                      {/* Number permanently visible above bar if desired, but user wants elegant minimalist. Let's make it visible on hover or always, prompt said "aparecer no hover ou acima ds barra". Let's place it just above the bar. */}
                       <div className="flex-1 flex flex-col justify-end items-center w-full relative">
                          {bar.value > 0 && (
-                            <span className="text-[10px] font-bold text-gray-400 mb-2 opacity-0 group-hover:opacity-100 group-hover:text-purple-600 transition-all group-hover:-translate-y-1">
+                            <span className="text-[10px] font-bold text-gray-400 mb-2 opacity-0 group-[&:hover]:opacity-100 group-[&:hover]:text-purple-600 transition-all group-[&:hover]:-translate-y-1">
                               {bar.value}
                             </span>
                          )}
                          <div className="w-full flex justify-center h-full items-end relative">
                             {/* The line track */}
-                            <div className="absolute w-[6px] bottom-0 bg-gray-50 h-full rounded-t-full transition-colors group-hover:bg-gray-100"></div>
+                            <div className="absolute w-[4px] bottom-0 bg-gray-50 h-full rounded-t-full transition-colors group-[&:hover]:bg-gray-100"></div>
                             {/* The actual filled bar */}
                             <div 
-                              className={`w-[6px] rounded-t-full z-10 opacity-70 group-hover:opacity-100 transition-all duration-500 relative bg-gradient-to-t from-gray-300 to-gray-400 group-hover:from-purple-500 group-hover:to-purple-400 ${bar.value === 0 ? 'min-h-[4px] from-gray-200 to-gray-200' : ''}`}
+                              className={`w-[4px] rounded-t-full z-10 opacity-70 group-[&:hover]:opacity-100 transition-all duration-500 relative bg-gradient-to-t from-gray-300 to-gray-400 group-[&:hover]:from-purple-500 group-[&:hover]:to-purple-400 ${bar.value === 0 ? 'min-h-[4px] from-gray-200 to-gray-200' : ''}`}
                               style={{ height: bar.height }}
                             ></div>
                          </div>
                       </div>
                       
-                      <span className={`text-[10px] font-bold whitespace-nowrap transition-colors ${idx === chartData.length - 1 ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-900'}`}>
+                      <span className={`text-[10px] font-bold whitespace-nowrap mt-3 transition-colors ${idx === chartData.length - 1 ? 'text-gray-900' : 'text-gray-400 group-[&:hover]:text-gray-900'}`}>
                         {idx === chartData.length - 1 ? 'Hoje' : bar.label}
                       </span>
                     </div>

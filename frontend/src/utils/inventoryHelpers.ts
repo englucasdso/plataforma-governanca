@@ -45,7 +45,7 @@ export function getOperationalInsights(inventory: Artifact[]) {
   const chartData = [];
   let localMaxVal = 0;
   
-  const DAYS_TO_SHOW = 21; // Mostrar 21 dias (3 semanas)
+  const DAYS_TO_SHOW = 10; // Mostrar 10 dias
   
   for (let i = DAYS_TO_SHOW - 1; i >= 0; i--) {
     const dayTime = anchorDate - (i * DAY_MS);
@@ -64,10 +64,10 @@ export function getOperationalInsights(inventory: Artifact[]) {
     cd.label = `${dt.getDate().toString().padStart(2, '0')}/${(dt.getMonth()+1).toString().padStart(2, '0')}`;
   });
 
-  // Calculate height, 0 is 0% but with a min height so it's visible, although it might just be 0
+  // Calculate height, 0 is 0% but with a min height so it's visible. Max height should ideally be ~95%
   const chartDataWithHeight = chartData.map(cd => ({
     ...cd,
-    height: localMaxVal > 0 ? `${(cd.value / localMaxVal) * 100}%` : "0%"
+    height: localMaxVal > 0 ? `${(cd.value / localMaxVal) * 95}%` : "0%"
   }));
 
   return {
