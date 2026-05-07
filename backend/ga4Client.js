@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 let globalContext = null;
 let isCollecting = false;
 
-async function runGA4Collection(properties) {
+async function runGA4Collection() {
   if (isCollecting) {
     throw new Error('A sincronização já está em andamento. Aguarde...');
   }
@@ -14,9 +14,9 @@ async function runGA4Collection(properties) {
   try {
     const userDataDir = path.resolve('data/playwright_ga4_session');
     
-    // Tentativa Headful primeiro para não dar erro se precisar logar, mas podemos colocar headless se tiver sessão
+    console.log('[GA4-PLAYWRIGHT] iniciando navegador com sessão persistente');
     let context = await chromium.launchPersistentContext(userDataDir, {
-      headless: true,
+      headless: false, // Usando headful para lidar com login se necessário e ajudar na visualização
       channel: 'chrome',
       ignoreHTTPSErrors: true,
       viewport: null,
@@ -32,62 +32,110 @@ async function runGA4Collection(properties) {
     globalContext = context;
     let page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
-    let firstProp = properties[0];
-    if (firstProp) {
-        let testUrl = `https://analytics.google.com/analytics/web/#/a${firstProp.accountId}p${firstProp.propertyId}/admin/events/hub`;
-        await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        
-        let currentUrl = page.url();
-        let needsLogin = false;
-        
-        if (currentUrl.includes('accounts.google.com') || currentUrl.includes('ServiceLogin')) {
-           needsLogin = true;
-           console.log('[GA4-PLAYWRIGHT] Sessão não autenticada. Reiniciando em modo assistido (Headful) para login...');
-           await context.close();
-           
-           context = await chromium.launchPersistentContext(userDataDir, {
-              headless: false,
-              channel: 'chrome',
-              ignoreHTTPSErrors: true,
-              viewport: null,
-              args: [
-                '--start-maximized',
-                '--ignore-certificate-errors',
-                '--no-sandbox', 
-                '--disable-setuid-sandbox', 
-                '--disable-web-security'
-              ]
-           });
-           globalContext = context;
-           page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
-           
-           console.log(`[GA4-PLAYWRIGHT] (Headful) Navegando para auth...`);
-           await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-           
-           console.log('[GA4-PLAYWRIGHT] aguardando login manual pelo usuário (Timeout: 5 minutos)');
-           try {
-               await page.waitForURL(/analytics\.google\.com\/analytics\/web/, { timeout: 300000 });
-           } catch(e) {
-               throw new Error("Tempo limite para login esgotado ou URL do GA4 não alcançada.");
-           }
-           
-           console.log('[GA4-PLAYWRIGHT] login detectado no modo assistido!');
-           // Dá um tempinho extra para SPA do GA4 carregar
-           await page.waitForTimeout(5000);
-           
-           currentUrl = page.url();
-           if (!currentUrl.includes(`p${firstProp.propertyId}`)) {
-             console.log(`[GA4-PLAYWRIGHT] redirecionando novamente para a property destino após login...`);
-             await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-           }
-        }
+    let baseUrl = `https://analytics.google.com/analytics/web/`;
+    console.log('[GA4-PLAYWRIGHT] acessando Google Analytics');
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    
+    let currentUrl = page.url();
+    let needsLogin = false;
+    
+    if (currentUrl.includes('accounts.google.com') || currentUrl.includes('ServiceLogin')) {
+       needsLogin = true;
+       console.log('[GA4-PLAYWRIGHT] aguardando login manual pelo usuário (Timeout: 5 minutos)');
+       try {
+           await page.waitForURL(/analytics\.google\.com\/analytics\/web/, { timeout: 300000 });
+       } catch(e) {
+           throw new Error("Tempo limite para login esgotado ou URL do GA4 não alcançada.");
+       }
     }
 
-    const finalEvents = [];
+    console.log('[GA4-PLAYWRIGHT] login detectado');
+    await page.waitForTimeout(5000); // Espera o SPA carregar
+    
+    currentUrl = page.url();
+    let currentMatch = currentUrl.match(/a(\d+)p(\d+)/);
+    
+    console.log('[GA4-PLAYWRIGHT] listando accounts');
+    
+    // Tenta extrair contas e propriedades da tela (se possível)
+    // Uma abordagem universal fallback: vamos capturar a conta/prop atual se o picker falhar,
+    // mas tentamos varrer o DOM.
+    let hierarchy = await page.evaluate(async () => {
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        
+        let result = [];
+        
+        // fallback: url atual
+        const match = window.location.hash.match(/a(\d+)p(\d+)/);
+        if (match) {
+            let accId = match[1];
+            let propId = match[2];
+            // Tenta pegar o nome da interface se possivel
+            let nameLabels = Array.from(document.querySelectorAll('span, div')).filter(el => {
+                let text = (el.innerText || "").trim();
+                return text.length > 2 && text.length < 50;
+            });
+            
+            result.push({
+                accountId: accId,
+                accountName: `Account ${accId}`,
+                properties: [{
+                    propertyId: propId,
+                    propertyName: `Property ${propId}`,
+                    events: []
+                }]
+            });
+        }
+        
+        // Tenta abrir o picker para encontrar mais
+        let pickerBtn = Array.from(document.querySelectorAll('button, div[role="button"]')).find(el => 
+            (el.getAttribute('aria-label') || "").toLowerCase().includes("conta") || 
+            (el.getAttribute('aria-label') || "").toLowerCase().includes("account") ||
+            (el.innerText || "").includes("Propriedades") ||
+            (el.innerText || "").includes("Properties")
+        );
+        
+        if (pickerBtn) {
+            pickerBtn.click();
+            await sleep(2000);
+            
+            let links = Array.from(document.querySelectorAll('a[href*="/#/a"]'));
+            for (let link of links) {
+                let href = link.getAttribute('href');
+                let m = href.match(/a(\d+)p(\d+)/);
+                if (m) {
+                    let aId = m[1];
+                    let pId = m[2];
+                    let text = link.innerText.trim();
+                    
+                    let acc = result.find(a => a.accountId === aId);
+                    if (!acc) {
+                        acc = { accountId: aId, accountName: `Account ${aId}`, properties: [] };
+                        result.push(acc);
+                    }
+                    if (!acc.properties.find(p => p.propertyId === pId)) {
+                        acc.properties.push({
+                            propertyId: pId,
+                            propertyName: text || `Property ${pId}`,
+                            events: []
+                        });
+                    }
+                }
+            }
+        }
+        
+        return result;
+    });
+
+    if (hierarchy.length === 0) {
+        throw new Error("Nenhuma conta do GA4 encontrada. Verifique se o usuário possui acesso.");
+    }
+
+    console.log(`[GA4-PLAYWRIGHT] accounts encontradas: ${hierarchy.length}`);
 
     // Helper para extrair da tabela atual
-    const extractFromCurrentTable = async (typeStr, prop) => {
-      return await page.evaluate(({ typeStr, accountId, accountName, propertyId, propertyName }) => {
+    const extractFromCurrentTable = async (typeStr) => {
+      return await page.evaluate(({ typeStr }) => {
           const events = [];
           const rows = Array.from(document.querySelectorAll('tr, .particle-table-row, mat-row'));
           
@@ -100,57 +148,68 @@ async function runGA4Collection(properties) {
                    const name = cols[0];
                    if (name && name.length > 2 && !name.includes("carregando") && !name.includes("loading")) {
                        events.push({
-                           accountId,
-                           accountName,
-                           propertyId,
-                           propertyName,
                            platform: "GA4",
                            eventName: name,
                            eventType: typeStr,
-                           status: "ativo"
+                           status: "Ativo"
                        });
                    }
                }
           }
           return events;
-      }, { typeStr, accountId: prop.accountId, accountName: prop.accountName, propertyId: prop.propertyId, propertyName: prop.displayName });
+      }, { typeStr });
     };
 
-    for (const prop of properties) {
-        console.log(`[GA4-PLAYWRIGHT] acessando property: ${prop.displayName}/${prop.propertyId}`);
-        const targetUrl = `https://analytics.google.com/analytics/web/#/a${prop.accountId}p${prop.propertyId}/admin/events/hub`;
-        console.log(`[GA4-PLAYWRIGHT] url: ${targetUrl}`);
+    for (const acc of hierarchy) {
+        console.log(`[GA4-PLAYWRIGHT] listando properties da account: ${acc.accountName}`);
+        console.log(`[GA4-PLAYWRIGHT] properties encontradas: ${acc.properties.length}`);
         
-        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        await page.waitForTimeout(5000); // Wait for potential skeleton loaders per property
-        
-        console.log('[GA4-PLAYWRIGHT] coletando Key events');
-        const keyEventsTable = await extractFromCurrentTable("Key event", prop);
-        if (keyEventsTable && keyEventsTable.length > 0) {
-            finalEvents.push(...keyEventsTable);
+        for (const prop of acc.properties) {
+            console.log(`[GA4-PLAYWRIGHT] acessando eventos da property: ${prop.propertyName}`);
+            const targetUrl = `https://analytics.google.com/analytics/web/#/a${acc.accountId}p${prop.propertyId}/admin/events/hub`;
+            
+            await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            await page.waitForTimeout(5000); // Wait for Skeleton loaders
+            
+            // Coletar
+            const keyEventsTable = await extractFromCurrentTable("Key event");
+            const allEventsTable = await extractFromCurrentTable("Recent event");
+            
+            const eventMap = new Map();
+            keyEventsTable.forEach(e => eventMap.set(e.eventName, e));
+            allEventsTable.forEach(e => {
+                if (!eventMap.has(e.eventName)) {
+                    eventMap.set(e.eventName, e);
+                }
+            });
+            
+            const finalPropEvents = Array.from(eventMap.values());
+            if (finalPropEvents.length === 0) {
+               console.log(`[GA4-PLAYWRIGHT] nenhum evento encontrado, tentando usar eventos padrão se tela for vazia...`);
+            } else {
+               prop.events = finalPropEvents;
+            }
+            
+            console.log(`[GA4-PLAYWRIGHT] eventos encontrados: ${finalPropEvents.length}`);
         }
-        
-        console.log('[GA4-PLAYWRIGHT] coletando Recent events');
-        const allEventsTable = await extractFromCurrentTable("Recent event", prop);
-        allEventsTable.forEach(evt => {
-           if (!finalEvents.find(e => e.eventName === evt.eventName && e.propertyId === evt.propertyId)) {
-               finalEvents.push(evt);
-           }
-        });
     }
-
-    console.log(`[GA4-PLAYWRIGHT] eventos encontrados: ${finalEvents.length}`);
 
     const dataDir = path.resolve('data');
     await fs.mkdir(dataDir, { recursive: true });
+    
+    const finalData = {
+        accounts: hierarchy,
+        lastSync: new Date().toISOString()
+    };
+    
     const filePath = path.resolve(dataDir, 'ga4-events.json');
     console.log(`[GA4-SYNC] salvando backend/data/ga4-events.json`);
-    await fs.writeFile(filePath, JSON.stringify(finalEvents, null, 2), 'utf8');
-    console.log(`[GA4-SYNC] finalizado`);
+    await fs.writeFile(filePath, JSON.stringify(finalData, null, 2), 'utf8');
+    console.log(`[GA4-SYNC] sincronização finalizada`);
 
     await context.close();
     globalContext = null;
-    return finalEvents;
+    return finalData;
 
   } catch (error) {
     console.error(`[GA4-PLAYWRIGHT] Erro: ${error.message}`);

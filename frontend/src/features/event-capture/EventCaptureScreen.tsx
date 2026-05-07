@@ -46,10 +46,14 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
     fetch("/api/events/ga4/saved")
         .then(res => res.json())
         .then(data => {
-            if (Array.isArray(data) && data.length > 0) {
-                setGa4Events(data);
+            if (data && data.accounts && Array.isArray(data.accounts)) {
+                setGa4Events(data.accounts); // we'll store the hierarchy here
+                setHasScrapedData(true);
+            } else if (Array.isArray(data) && data.length > 0) {
+                setGa4Events(data); // Legacy support if needed
                 setHasScrapedData(true);
             } else {
+                setGa4Events([]);
                 setHasScrapedData(false);
             }
             setLoadingInitial(false);
@@ -88,63 +92,40 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
       return () => clearInterval(interval);
   }, [syncJob.active, syncJob.status]);
 
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
-  const [properties, setProperties] = useState<any[]>([]);
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
-  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
-  const [isLoadingProperties, setIsLoadingProperties] = useState(false);
-
-  useEffect(() => {
-    if (showAuthModal) {
-      // Carregar Accounts
-      setIsLoadingAccounts(true);
-      fetch("/api/events/ga4/accounts")
-        .then(res => res.json())
-        .then(data => {
-            if (Array.isArray(data)) setAccounts(data);
-            setIsLoadingAccounts(false);
-        })
-        .catch(err => {
-            console.error("Error fetching GA4 accounts", err);
-            setIsLoadingAccounts(false);
-        });
-    } else {
-        setAccounts([]);
-        setProperties([]);
-        setSelectedAccountId('');
-        setSelectedPropertyId('');
-    }
-  }, [showAuthModal]);
-
-  useEffect(() => {
-    if (selectedAccountId) {
-        setIsLoadingProperties(true);
-        fetch(`/api/events/ga4/properties?account=properties/${selectedAccountId}`)
-          .then(res => res.json())
-          .then(data => {
-              if (Array.isArray(data)) setProperties(data);
-              setIsLoadingProperties(false);
-          })
-          .catch(err => {
-              console.error("Error fetching GA4 properties", err);
-              setIsLoadingProperties(false);
-          });
-    } else {
-        setProperties([]);
-    }
-  }, [selectedAccountId]);
-
   const [selectedAccountFilter, setSelectedAccountFilter] = useState('');
   const [selectedPropertyFilter, setSelectedPropertyFilter] = useState('');
 
-  const availableAccounts = Array.from(new Set(ga4Events.map(e => e.accountId))).map(id => {
-      return ga4Events.find(e => e.accountId === id);
-  }).filter(Boolean);
+  // Process hierarchy into flat lists for dropdowns
+  const isNestedFormat = ga4Events.length > 0 && ga4Events[0].properties !== undefined;
+
+  const availableAccounts = isNestedFormat 
+      ? ga4Events.map(acc => ({ accountId: acc.accountId, accountName: acc.accountName }))
+      : Array.from(new Set(ga4Events.map(e => e.accountId))).map(id => ga4Events.find(e => e.accountId === id)).filter(Boolean);
   
-  const availableProperties = Array.from(new Set(ga4Events.filter(e => !selectedAccountFilter || e.accountId === selectedAccountFilter).map(e => e.propertyId))).map(id => {
-      return ga4Events.find(e => e.propertyId === id);
-  }).filter(Boolean);
+  const availableProperties = isNestedFormat
+      ? ga4Events.filter(acc => !selectedAccountFilter || acc.accountId === selectedAccountFilter).flatMap(acc => acc.properties.map((p:any) => ({ propertyId: p.propertyId, propertyName: p.propertyName })))
+      : Array.from(new Set(ga4Events.filter(e => !selectedAccountFilter || e.accountId === selectedAccountFilter).map(e => e.propertyId))).map(id => ga4Events.find(e => e.propertyId === id)).filter(Boolean);
+
+  const flatEvents = [];
+  if (isNestedFormat) {
+      ga4Events.forEach(acc => {
+          if (selectedAccountFilter && acc.accountId !== selectedAccountFilter) return;
+          acc.properties.forEach((prop:any) => {
+              if (selectedPropertyFilter && prop.propertyId !== selectedPropertyFilter) return;
+              if (prop.events) {
+                  prop.events.forEach((evt:any) => {
+                      flatEvents.push({
+                          ...evt,
+                          accountId: acc.accountId,
+                          propertyId: prop.propertyId
+                      });
+                  });
+              }
+          });
+      });
+  } else {
+      ga4Events.forEach(evt => flatEvents.push(evt));
+  }
 
   const handleStartSync = async () => {
       setShowAuthModal(false);
@@ -163,16 +144,16 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   };
 
   const filteredEvents = selectedPlatform === "GA4" 
-    ? ga4Events.filter(evt => {
+    ? flatEvents.filter((evt:any) => {
         if (selectedAccountFilter && evt.accountId !== selectedAccountFilter) return false;
         if (selectedPropertyFilter && evt.propertyId !== selectedPropertyFilter) return false;
         return true;
-      }).map((evt, idx) => ({
+      }).map((evt:any, idx:number) => ({
         ...evt,
         id: evt.id || `ga4-${idx}`,
         name: evt.name || evt.eventName || "Desconhecido",
         platform: 'GA4',
-        status: evt.status || 'ativo',
+        status: evt.status || 'Adicionado',
         eventType: evt.eventType || "Event",
       }))
     : selectedPlatform 
@@ -444,7 +425,6 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-gray-50 bg-gray-50/50">
-                  {selectedPlatform === "GA4" && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Property</th>}
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Nome do Evento</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Plataforma</th>
                   {selectedPlatform === "GA4" && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Tipo</th>}
@@ -455,18 +435,13 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
               <tbody className="divide-y divide-gray-50">
                 {loadingInitial ? (
                   <tr>
-                    <td colSpan={selectedPlatform === "GA4" ? 5 : 4} className="px-8 py-10 text-center text-gray-500 flex flex-col items-center">
+                    <td colSpan={selectedPlatform === "GA4" ? 4 : 4} className="px-8 py-10 text-center text-gray-500 flex flex-col items-center">
                         <Loader2 className="w-8 h-8 text-purple-600 animate-spin mb-3" />
                         <p className="font-semibold text-gray-900">Carregando dados salvos...</p>
                     </td>
                   </tr>
                 ) : filteredEvents.map((evt: any) => (
                   <tr key={evt.id} className="hover:bg-gray-50/50 transition-colors group">
-                    {selectedPlatform === "GA4" && (
-                        <td className="px-8 py-5">
-                            <span className="text-xs font-medium text-gray-600">{evt.propertyName || "-"}</span>
-                        </td>
-                    )}
                     <td className="px-8 py-5">
                       <span className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">{evt.name}</span>
                     </td>
@@ -482,11 +457,11 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                     )}
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
-                        {evt.status === 'ativo' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {(evt.status === 'ativo' || evt.status === 'Ativo' || evt.status === 'Adicionado') && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                         {evt.status === 'atenção' && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
-                        {(evt.status === 'inativo' || evt.status === 'indisponivel') && <AlertCircle className="w-4 h-4 text-red-500" />}
+                        {(evt.status === 'inativo' || evt.status === 'indisponivel' || evt.status === 'Indisponível') && <AlertCircle className="w-4 h-4 text-red-500" />}
                         <span className={`text-xs font-bold capitalize ${
-                          evt.status === 'ativo' ? 'text-green-700' :
+                          (evt.status === 'ativo' || evt.status === 'Ativo' || evt.status === 'Adicionado') ? 'text-green-700' :
                           evt.status === 'atenção' ? 'text-yellow-700' : 'text-red-700'
                         }`}>
                           {evt.status === 'indisponivel' ? 'Indisponível' : evt.status}
@@ -504,10 +479,10 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 ))}
                 {!loadingInitial && filteredEvents.length === 0 && (
                   <tr>
-                    <td colSpan={selectedPlatform === "GA4" ? 5 : 4} className="px-8 py-10 text-center text-gray-500">
+                    <td colSpan={selectedPlatform === "GA4" ? 4 : 4} className="px-8 py-10 text-center text-gray-500">
                       <div className="flex flex-col items-center">
                           <AlertCircle className="w-8 h-8 text-gray-300 mb-3" />
-                          <p className="font-semibold text-gray-900">Nenhum evento encontrado para esta property.</p>
+                          <p className="font-semibold text-gray-900">Nenhum evento encontrado.</p>
                           {selectedPlatform === "GA4" && (
                               <p className="text-sm mt-1">Clique em <strong className="text-purple-600">Buscar eventos GA4</strong> no topo para iniciar a sincronização.</p>
                           )}

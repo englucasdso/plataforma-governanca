@@ -1,13 +1,7 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import {
-  checkStatus,
-  getAccounts,
-  getProperties,
-  getEventsFromProperty,
-  getAllEvents
-} from "../services/integrations/ga4.service";
+import { checkStatus } from "../services/integrations/ga4.service";
 import { runGA4Collection, abortGA4Collection } from "../ga4Client.js";
 
 const router = express.Router();
@@ -19,12 +13,11 @@ async function runGa4Sync() {
         console.log("[GA4-SYNC] iniciando sincronização");
         syncJob.step = 1; // Playwright / Setup local
         
-        // As contas já serão mostradas nos logs pelo service
+        // Validação ADC apenas para checar se o usuário está logado
+        await checkStatus();
         
         syncJob.step = 2; // Extraindo dados
-        const allProperties = await getProperties();
-        
-        const events = await runGA4Collection(allProperties);
+        const events = await runGA4Collection();
         
         syncJob.step = 3; // Sucesso
         syncJob.status = "success";
@@ -101,48 +94,6 @@ router.get("/ga4/saved", (req, res) => {
    } else {
       res.json([]);
    }
-});
-
-router.get("/ga4/accounts", async (req, res) => {
-  try {
-    const accounts = await getAccounts();
-    res.json(accounts);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get("/ga4/properties", async (req, res) => {
-  try {
-    const accountFilter = req.query.account as string;
-    const properties = await getProperties(accountFilter);
-    res.json(properties);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get("/ga4/events", async (req, res) => {
-  try {
-    const propertyId = req.query.propertyId as string;
-    if (!propertyId) {
-       res.status(400).json({ error: "propertyId is required" });
-       return;
-    }
-    const events = await getEventsFromProperty(propertyId);
-    res.json(events);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get("/ga4/events/all", async (req, res) => {
-  try {
-    const events = await getAllEvents();
-    res.json(events);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
 export default router;
