@@ -37,10 +37,33 @@ async function runGa4Sync() {
     } catch (error: any) {
         syncJob.status = "error";
         const errorMsg = error.message || "";
-        if (errorMsg.includes("UNAVAILABLE") || errorMsg.includes("ETIMEDOUT") || errorMsg.includes("timeout") || errorMsg.includes("rede corporativa bloqueou")) {
-            syncJob.errorMsg = "Autenticação iniciada, mas a conexão com Google Analytics foi bloqueada pela rede corporativa. Tente novamente ou use o modo de atualização assistida.";
+        
+        const type = (errorMsg.includes("UNAVAILABLE") || errorMsg.includes("ETIMEDOUT") || errorMsg.includes("timeout") || errorMsg.includes("read ECONNRESET") || errorMsg.includes("oauth")) ? "network/proxy" : "unknown";
+
+        if (type === "network/proxy") {
+            syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. A autenticação foi iniciada, mas a rede corporativa bloqueou a comunicação com o Google OAuth.";
         } else {
-            syncJob.errorMsg = errorMsg;
+            syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. Erro: " + errorMsg;
+        }
+
+        try {
+            const dirPath = path.join(process.cwd(), "data");
+            if (!fs.existsSync(dirPath)) {
+                fs.mkdirSync(dirPath, { recursive: true });
+            }
+            const logPath = path.join(dirPath, "ga4-update-log.json");
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                step: syncJob.step,
+                originalMessage: errorMsg,
+                type: type,
+                status: "failed"
+            };
+            const logs = fs.existsSync(logPath) ? JSON.parse(fs.readFileSync(logPath, "utf8")) : [];
+            logs.push(logEntry);
+            fs.writeFileSync(logPath, JSON.stringify(logs, null, 2));
+        } catch (e) {
+            console.error("Erro ao salvar log de ga4", e);
         }
     }
 }

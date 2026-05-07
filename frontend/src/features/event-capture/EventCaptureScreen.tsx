@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, ArrowRight, Activity, Search, Filter, CheckCircle2, AlertTriangle, AlertCircle, ChevronLeft, Loader2, Cloud, KeyRound } from 'lucide-react';
+import { Target, ArrowRight, Activity, Search, Filter, CheckCircle2, AlertTriangle, AlertCircle, ChevronLeft, Loader2, Cloud, KeyRound, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TypewriterText } from '../../components/TypewriterText';
 
@@ -225,13 +225,13 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                   </div>
                 </div>
                 {syncJob.status !== 'running' && (
-                  <button onClick={() => setSyncJob(s => ({ ...s, active: false }))} className="text-gray-400 hover:text-gray-600 ml-2">
-                    <AlertCircle className="w-4 h-4" />
+                  <button onClick={() => setSyncJob(s => ({ ...s, active: false }))} className="text-gray-400 hover:text-gray-600 ml-2 bg-gray-100/50 hover:bg-gray-100 p-1.5 rounded-full transition-colors">
+                    <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
               {syncJob.errorMsg && (
-                 <div className="mt-2 text-xs font-medium bg-red-50 text-red-600 p-2.5 rounded-xl border border-red-100 uppercase tracking-wide">
+                 <div className="mt-2 text-xs font-medium bg-red-50 text-red-600 p-2.5 rounded-xl border border-red-100 leading-tight">
                     {syncJob.errorMsg}
                  </div>
               )}
