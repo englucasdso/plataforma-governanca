@@ -86,13 +86,34 @@ export async function extractEventsPW(accountId, accountName, propertyId, proper
     console.log(`[GA4-PLAYWRIGHT] property selecionada: ${propertyName}/${propertyId}`);
     console.log(`[GA4-PLAYWRIGHT] acessando Admin > Data display > Events`);
     
-    const page = globalPage;
-    if (!page) throw new Error("Sessão não iniciada");
+    let page = globalPage;
+    if (!page) {
+        page = await initPlaywright();
+    }
 
     if (propertyId && propertyId !== "default") {
         await page.goto(`https://analytics.google.com/analytics/web/#/p${propertyId}/admin/events`, { waitUntil: 'domcontentloaded' });
+    } else {
+        await page.goto('https://analytics.google.com/analytics/web/', { waitUntil: 'domcontentloaded' });
     }
     
+    // Check login
+    if (page.url().includes('accounts.google.com') || page.url().includes('ServiceLogin')) {
+        console.log('[GA4-PLAYWRIGHT] aguardando login');
+        try {
+            await page.waitForURL(/analytics\.google\.com\/analytics\/web/, { timeout: 300000 });
+            console.log('[GA4-PLAYWRIGHT] login detectado');
+            await page.waitForTimeout(5000);
+            
+            // Re-navigate to events after login just in case
+            if (propertyId && propertyId !== "default") {
+                await page.goto(`https://analytics.google.com/analytics/web/#/p${propertyId}/admin/events`, { waitUntil: 'domcontentloaded' });
+            }
+        } catch(e) {
+            throw new Error("Login no GA4 não finalizado a tempo (timeout).");
+        }
+    }
+
     // Fallback click admin if URL jump fails or needs manual load
     try {
         await page.waitForTimeout(5000); 

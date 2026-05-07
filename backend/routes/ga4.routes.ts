@@ -1,14 +1,8 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import {
-  checkStatus,
-  getAccounts,
-  getProperties,
-  getEventsFromProperty,
-  getAllEvents
-} from "../services/integrations/ga4.service";
-import { getAccountsPW, getPropertiesPW, extractEventsPW, closePlaywright } from "../ga4Client.js";
+import { checkStatus, getAccounts, getProperties, getEventsFromProperty, getAllEvents } from "../services/integrations/ga4.service";
+import { extractEventsPW, closePlaywright } from "../ga4Client.js";
 
 const router = express.Router();
 
@@ -29,7 +23,7 @@ function logPwError(e: any) {
             timestamp: new Date().toISOString(),
             step: pwSyncState.phase,
             originalMessage: e.message || String(e),
-            type: "playwright",
+            type: "adc/playwright",
             status: "failed"
         };
         const logs = fs.existsSync(logPath) ? JSON.parse(fs.readFileSync(logPath, "utf8")) : [];
@@ -44,12 +38,12 @@ router.post("/ga4/pw/start", async (req, res) => {
     pwSyncState = { active: true, phase: 'accounts', accounts: [], properties: [], errorMsg: "" };
     res.json({ message: "Started" });
     try {
-        const accounts = await getAccountsPW();
-        pwSyncState.accounts = accounts;
+        const rawAccounts = await getAccounts();
+        pwSyncState.accounts = rawAccounts.map((a: any) => ({ id: a.name, name: a.displayName || a.name }));
         pwSyncState.phase = 'properties-wait';
     } catch (e: any) {
         pwSyncState.phase = 'error';
-        pwSyncState.errorMsg = e.message;
+        pwSyncState.errorMsg = "Erro de autenticação ADC. Execute gcloud auth application-default login. Detalhes: " + e.message;
         logPwError(e);
     }
 });
@@ -59,12 +53,12 @@ router.post("/ga4/pw/select-account", async (req, res) => {
     pwSyncState.phase = 'properties';
     res.json({ message: "Fetching properties" });
     try {
-        const props = await getPropertiesPW(accountId);
-        pwSyncState.properties = props;
+        const rawProps = await getProperties(accountId);
+        pwSyncState.properties = rawProps.map((p: any) => ({ id: p.propertyId, name: p.displayName || p.name }));
         pwSyncState.phase = 'events-wait';
     } catch(e: any) {
         pwSyncState.phase = 'error';
-        pwSyncState.errorMsg = e.message;
+        pwSyncState.errorMsg = "Erro usando ADC: " + e.message;
         logPwError(e);
     }
 });
