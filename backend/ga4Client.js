@@ -12,7 +12,7 @@ async function runGA4Collection() {
   isCollecting = true;
 
   try {
-    const userDataDir = path.resolve('backend/data/playwright_ga4_session');
+    const userDataDir = path.resolve('backend/data/playwright_session');
     
     console.log('[GA4-PLAYWRIGHT] usando sessão persistente');
     console.log('[GA4-PLAYWRIGHT] iniciando modo headless');
@@ -40,7 +40,7 @@ async function runGA4Collection() {
     let currentUrl = page.url();
     
     if (currentUrl.includes('accounts.google.com') || currentUrl.includes('ServiceLogin')) {
-       throw new Error("Sessão GA4 não encontrada ou expirada. Abra o GA4 uma vez no navegador assistido para criar a sessão.");
+       throw new Error("Sessão Google não encontrada ou expirada na sessão persistente. O processo em background não conseguiu autenticar automaticamente.");
     }
 
     console.log('[GA4-PLAYWRIGHT] acessando GA4');
