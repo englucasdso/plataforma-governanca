@@ -26,7 +26,10 @@ async function runGA4Collection() {
         '--ignore-certificate-errors',
         '--no-sandbox', 
         '--disable-setuid-sandbox', 
-        '--disable-web-security'
+        '--disable-web-security',
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+        '--headless=new'
       ]
     });
 
@@ -222,6 +225,10 @@ async function runGA4Collection() {
     console.error(`[GA4-PLAYWRIGHT] Erro: ${error.message}`);
     throw error;
   } finally {
+    if (globalContext) {
+        await globalContext.close().catch(() => {});
+        globalContext = null;
+    }
     isCollecting = false;
   }
 }
