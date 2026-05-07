@@ -163,12 +163,12 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                             Atualização GA4
                         </h2>
                         <p className="text-gray-500 font-medium mb-8 text-sm">
-                            Sincronize os dados através do Google Cloud SDK (ADC).
+                            Sincronize os dados através de acesso assistido (Playwright).
                         </p>
                         <div className="w-full bg-gray-50 rounded-2xl p-4 mb-8 text-left border border-gray-100 flex items-start gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                            <CheckCircle2 className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
                             <p className="text-sm font-medium text-gray-600 leading-tight">
-                                Sessão <strong className="text-gray-900">ADC</strong> detectada. A atualização roda em background e os eventos são salvos na nossa base de dados.
+                                O sistema abrirá uma janela do <strong className="text-gray-900">Chrome</strong> para você fazer login no Google Analytics. Os eventos selecionados serão salvos na base.
                             </p>
                         </div>
                         <div className="flex flex-col gap-3 w-full">
@@ -220,12 +220,21 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                     <span className="text-xs font-medium text-gray-500 mt-0.5">
                       {syncJob.status === "error" 
                         ? "Erro no processo"
-                        : ["Preparando...", "Verificando Autenticação ADC...", "Baixando eventos do Google Analytics via REST API...", "Salvando eventos localmente na base...", "Sincronização concluída!"][syncJob.step]}
+                        : ["Preparando...", "Iniciando navegador Playwright...", "Extraindo dados do Google Analytics...", "Salvando eventos localmente...", "Sincronização concluída!"][syncJob.step]}
                     </span>
                   </div>
                 </div>
                 {syncJob.status !== 'running' && (
-                  <button onClick={() => setSyncJob(s => ({ ...s, active: false }))} className="text-gray-400 hover:text-gray-600 ml-2 bg-gray-100/50 hover:bg-gray-100 p-1.5 rounded-full transition-colors">
+                  <button onClick={() => {
+                        setSyncJob(s => ({ ...s, active: false }));
+                  }} className="text-gray-400 hover:text-gray-600 ml-2 bg-gray-100/50 hover:bg-gray-100 p-1.5 rounded-full transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                {syncJob.status === 'running' && (
+                  <button onClick={() => {
+                        fetch('/api/events/ga4/sync/cancel', { method: 'POST' }).catch(console.error);
+                  }} className="text-gray-400 hover:text-red-600 ml-2 bg-gray-100/50 hover:bg-red-50 p-1.5 rounded-full transition-colors" title="Cancelar sincronização">
                     <X className="w-4 h-4" />
                   </button>
                 )}

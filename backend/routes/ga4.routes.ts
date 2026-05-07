@@ -8,6 +8,7 @@ import {
   getEventsFromProperty,
   getAllEvents
 } from "../services/integrations/ga4.service";
+import { runGA4Collection, abortGA4Collection } from "../ga4Client.js";
 
 const router = express.Router();
 
@@ -15,36 +16,19 @@ let syncJob = { active: false, step: 0, status: "idle", errorMsg: "" };
 
 async function runGa4Sync() {
     try {
-        syncJob.step = 1;
-        const auth = await checkStatus();
-        if(!auth.connected) throw new Error("ADC não configurado");
+        syncJob.step = 1; // Iniciando navegador
         
-        syncJob.step = 2;
-        const events = await getAllEvents();
+        syncJob.step = 2; // Extraindo dados via Playwright
+        const events = await runGA4Collection();
         
-        syncJob.step = 3;
-        const dirPath = path.join(process.cwd(), "data");
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
-        
-        const filePath = path.join(dirPath, "ga4-events.json");
-        fs.writeFileSync(filePath, JSON.stringify(events, null, 2));
-        
-        syncJob.step = 4;
+        syncJob.step = 3; // Sucesso
         syncJob.status = "success";
         
     } catch (error: any) {
         syncJob.status = "error";
         const errorMsg = error.message || "";
         
-        const type = (errorMsg.includes("UNAVAILABLE") || errorMsg.includes("ETIMEDOUT") || errorMsg.includes("timeout") || errorMsg.includes("read ECONNRESET") || errorMsg.includes("oauth")) ? "network/proxy" : "unknown";
-
-        if (type === "network/proxy") {
-            syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. A autenticação foi iniciada, mas a rede corporativa bloqueou a comunicação com o Google OAuth.";
-        } else {
-            syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. Erro: " + errorMsg;
-        }
+        syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. Erro: " + errorMsg;
 
         try {
             const dirPath = path.join(process.cwd(), "data");
@@ -56,7 +40,7 @@ async function runGa4Sync() {
                 timestamp: new Date().toISOString(),
                 step: syncJob.step,
                 originalMessage: errorMsg,
-                type: type,
+                type: "playwright/ui",
                 status: "failed"
             };
             const logs = fs.existsSync(logPath) ? JSON.parse(fs.readFileSync(logPath, "utf8")) : [];
@@ -87,6 +71,17 @@ router.post("/ga4/sync", (req, res) => {
    runGa4Sync().catch(console.error);
 
    res.json({ message: "Started" });
+});
+
+router.post("/ga4/sync/cancel", async (req, res) => {
+   try {
+       await abortGA4Collection();
+       syncJob.status = "error";
+       syncJob.errorMsg = "Sincronização cancelada pelo usuário.";
+       res.json({ message: "Cancelled" });
+   } catch (e: any) {
+       res.status(500).json({ error: e.message });
+   }
 });
 
 router.get("/ga4/sync/status", (req, res) => {
