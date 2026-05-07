@@ -35,9 +35,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [syncJob, setSyncJob] = useState({ active: false, phase: 'idle', accounts: [], properties: [], errorMsg: '' });
-  const [selectedPWAccount, setSelectedPWAccount] = useState('');
-  const [selectedPWProperty, setSelectedPWProperty] = useState('');
+  const [syncJob, setSyncJob] = useState({ active: false, step: 0, status: 'idle', errorMsg: '' });
   const [hasScrapedData, setHasScrapedData] = useState(false);
   const [loadingInitial, setLoadingInitial] = useState(false);
 
@@ -75,59 +73,38 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
 
   useEffect(() => {
       let interval: any;
-      if (syncJob.active && !['idle', 'success', 'error', 'properties-wait', 'events-wait'].includes(syncJob.phase)) {
+      if (syncJob.active && syncJob.status === "running") {
           interval = setInterval(() => {
-              fetch("/api/events/ga4/pw/status")
+              fetch("/api/events/ga4/sync/status")
                   .then(res => res.json())
                   .then(data => {
                       setSyncJob(data);
-                      if (data.phase === "success") {
-                          loadSavedEvents();
-                          setTimeout(() => setSyncJob(s => ({ ...s, active: false, phase: 'idle' })), 3000);
+                      if (data.status !== "running") {
+                          clearInterval(interval);
+                          if (data.status === "success") {
+                              loadSavedEvents();
+                              setTimeout(() => setSyncJob(s => ({ ...s, active: false })), 3000);
+                          }
                       }
                   })
                   .catch(err => console.error(err));
           }, 2000);
       }
-      // If we are waiting for user, sync states
-      if (syncJob.active && ['properties-wait', 'events-wait'].includes(syncJob.phase)) {
-          fetch("/api/events/ga4/pw/status").then(res => res.json()).then(data => {
-              if(data.phase !== syncJob.phase) setSyncJob(data);
-          }).catch(()=>{});
-      }
       return () => clearInterval(interval);
-  }, [syncJob.active, syncJob.phase]);
+  }, [syncJob.active, syncJob.status]);
 
   const handleStartSync = async () => {
       setShowAuthModal(false);
       try {
-          const res = await fetch("/api/events/ga4/pw/start", { method: "POST" });
+          const res = await fetch("/api/events/ga4/sync", { method: "POST" });
           if (res.ok) {
-              setSyncJob({ active: true, phase: 'accounts', accounts: [], properties: [], errorMsg: '' });
+              setSyncJob({ active: true, step: 1, status: 'running', errorMsg: '' });
           } else {
-              setSyncJob({ active: true, phase: 'error', accounts: [], properties: [], errorMsg: 'Falha ao iniciar sincronização' });
+              setSyncJob({ active: true, step: 0, status: 'error', errorMsg: 'Falha ao iniciar sincronização' });
           }
       } catch (err) {
           console.error(err);
       }
-  };
-
-  const handleContinueAccount = () => {
-      fetch("/api/events/ga4/pw/select-account", { 
-          method: "POST", 
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accountId: selectedPWAccount })
-      }).then(() => setSyncJob(s => ({ ...s, phase: 'properties' }))).catch(console.error);
-  };
-
-  const handleContinueProperty = () => {
-      const acc = syncJob.accounts.find((a: any) => a.id === selectedPWAccount) || { name: 'Desconhecida' };
-      const prop = syncJob.properties.find((p: any) => p.id === selectedPWProperty) || { name: 'Desconhecida' };
-      fetch("/api/events/ga4/pw/select-property", { 
-          method: "POST", 
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accountId: selectedPWAccount, accountName: acc.name, propertyId: selectedPWProperty, propertyName: prop.name })
-      }).then(() => setSyncJob(s => ({ ...s, phase: 'events' }))).catch(console.error);
   };
 
   const handleManualFetch = () => {
@@ -219,99 +196,48 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
               initial={{ opacity: 0, y: 50, scale: 0.9 }} 
               animate={{ opacity: 1, y: 0, scale: 1 }} 
               exit={{ opacity: 0, y: 50, scale: 0.9 }}
-              className="fixed bottom-6 right-6 z-[100] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-96 flex flex-col gap-3 overflow-hidden"
+              className="fixed bottom-6 right-6 z-[100] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-80 flex flex-col gap-3 overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
                 <div 
-                  className={`h-full transition-all duration-500 ease-out ${syncJob.phase === 'error' ? 'bg-red-500' : syncJob.phase === 'success' ? 'bg-green-500' : 'bg-bradesco-red'}`} 
-                  style={{ width: `${Math.min(100, ['idle','accounts','properties-wait','properties','events-wait','events','success'].indexOf(syncJob.phase) * 16)}%` }}
+                  className={`h-full transition-all duration-500 ease-out ${syncJob.status === 'error' ? 'bg-red-500' : syncJob.status === 'success' ? 'bg-green-500' : 'bg-bradesco-red'}`} 
+                  style={{ width: `${Math.min(100, Math.round((syncJob.step / 4) * 100))}%` }}
                 />
               </div>
               
               <div className="flex items-start justify-between mt-1">
-                <div className="flex items-center gap-3 w-full">
+                <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
-                     {['accounts', 'properties', 'events'].includes(syncJob.phase) && <Loader2 className="w-5 h-5 text-bradesco-red animate-spin" />}
-                     {['properties-wait', 'events-wait'].includes(syncJob.phase) && <Target className="w-5 h-5 text-bradesco-red" />}
-                     {syncJob.phase === "success" && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                     {syncJob.phase === "error" && <AlertTriangle className="w-5 h-5 text-red-500" />}
+                     {syncJob.status === "running" && <Loader2 className="w-5 h-5 text-bradesco-red animate-spin" />}
+                     {syncJob.status === "success" && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                     {syncJob.status === "error" && <AlertTriangle className="w-5 h-5 text-red-500" />}
                   </div>
-                  <div className="flex flex-col flex-1 w-full">
+                  <div className="flex flex-col flex-1">
                     <span className="font-bold text-gray-900 text-sm">
-                      {['success', 'error'].includes(syncJob.phase) ? (syncJob.phase === 'success' ? 'Concluído' : 'Falha na Sincronização') : 'Automação Playwright GA4'}
+                      {syncJob.status === "running" ? "Sincronizando..." : syncJob.status === "success" ? "Concluído" : "Falha na Sincronização"}
                     </span>
                     <span className="text-xs font-medium text-gray-500 mt-0.5">
-                      {syncJob.phase === "error" ? "Erro no processo" : 
-                       syncJob.phase === "accounts" ? "Acessando GA4 e localizando contas..." :
-                       syncJob.phase === "properties" ? "Buscando propriedades..." :
-                       syncJob.phase === "events" ? "Extraindo tabela de eventos..." :
-                       syncJob.phase === "success" ? "Eventos salvos!" : "Aguardando seleção..."}
+                      {syncJob.status === "error" 
+                        ? "Erro no processo"
+                        : ["Preparando...", "Iniciando navegador Playwright...", "Extraindo dados do Google Analytics...", "Salvando eventos localmente...", "Sincronização concluída!"][syncJob.step]}
                     </span>
                   </div>
                 </div>
-                {['error', 'success'].includes(syncJob.phase) && (
+                {syncJob.status !== 'running' && (
                   <button onClick={() => {
-                        setSyncJob(s => ({ ...s, active: false, phase: 'idle' }));
+                        setSyncJob(s => ({ ...s, active: false }));
                   }} className="text-gray-400 hover:text-gray-600 ml-2 bg-gray-100/50 hover:bg-gray-100 p-1.5 rounded-full transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 )}
-                {!['error', 'success'].includes(syncJob.phase) && (
+                {syncJob.status === 'running' && (
                   <button onClick={() => {
-                        fetch('/api/events/ga4/pw/cancel', { method: 'POST' }).catch(console.error);
+                        fetch('/api/events/ga4/sync/cancel', { method: 'POST' }).catch(console.error);
                   }} className="text-gray-400 hover:text-red-600 ml-2 bg-gray-100/50 hover:bg-red-50 p-1.5 rounded-full transition-colors" title="Cancelar sincronização">
                     <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
-
-              {/* Progress UI for selection */}
-              {syncJob.phase === 'properties-wait' && (
-                  <div className="flex flex-col gap-2 mt-2">
-                       <label className="text-xs font-bold text-gray-700">Selecione a Conta:</label>
-                       <select 
-                           value={selectedPWAccount} 
-                           onChange={e => setSelectedPWAccount(e.target.value)}
-                           className="w-full text-sm p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-bradesco-red"
-                       >
-                           <option value="">Selecione...</option>
-                           {syncJob.accounts.map((a: any) => (
-                               <option key={a.id} value={a.id}>{a.name}</option>
-                           ))}
-                       </select>
-                       <button 
-                           onClick={handleContinueAccount}
-                           disabled={!selectedPWAccount}
-                           className="mt-2 w-full bg-bradesco-red text-white font-bold text-sm py-2 rounded-lg hover:bg-black disabled:opacity-50 transition-colors"
-                       >
-                           Continuar
-                       </button>
-                  </div>
-              )}
-
-              {syncJob.phase === 'events-wait' && (
-                  <div className="flex flex-col gap-2 mt-2">
-                       <label className="text-xs font-bold text-gray-700">Selecione a Propriedade:</label>
-                       <select 
-                           value={selectedPWProperty} 
-                           onChange={e => setSelectedPWProperty(e.target.value)}
-                           className="w-full text-sm p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-bradesco-red"
-                       >
-                           <option value="">Selecione...</option>
-                           {syncJob.properties.map((p: any) => (
-                               <option key={p.id} value={p.id}>{p.name}</option>
-                           ))}
-                       </select>
-                       <button 
-                           onClick={handleContinueProperty}
-                           disabled={!selectedPWProperty}
-                           className="mt-2 w-full bg-bradesco-red text-white font-bold text-sm py-2 rounded-lg hover:bg-black disabled:opacity-50 transition-colors"
-                       >
-                           Extrair Eventos
-                       </button>
-                  </div>
-              )}
-
               {syncJob.errorMsg && (
                  <div className="mt-2 text-xs font-medium bg-red-50 text-red-600 p-2.5 rounded-xl border border-red-100 leading-tight">
                     {syncJob.errorMsg}
@@ -477,31 +403,25 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-gray-50 bg-gray-50/50">
-                  {selectedPlatform === "GA4" && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Property</th>}
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Nome do Evento</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Plataforma</th>
-                  {selectedPlatform === "GA4" && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Key Event</th>}
+                  {selectedPlatform === "GA4" && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Property</th>}
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                  {selectedPlatform !== "GA4" && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Última Ocorrência</th>}
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Volume / Ocorrência</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loadingInitial ? (
                   <tr>
                     <td colSpan={selectedPlatform === "GA4" ? 5 : 4} className="px-8 py-10 text-center text-gray-500 flex flex-col items-center">
-                        <Loader2 className="w-8 h-8 text-bradesco-red animate-spin mb-3" />
+                        <Loader2 className="w-8 h-8 text-purple-600 animate-spin mb-3" />
                         <p className="font-semibold text-gray-900">Carregando dados salvos...</p>
                     </td>
                   </tr>
-                ) : filteredEvents.map((evt: any, i: number) => (
-                  <tr key={evt.id || i} className="hover:bg-gray-50/50 transition-colors group">
-                    {selectedPlatform === "GA4" && (
-                        <td className="px-8 py-5">
-                            <span className="text-xs font-bold text-gray-900">{evt.propertyName || "-"}</span>
-                        </td>
-                    )}
+                ) : filteredEvents.map((evt: any) => (
+                  <tr key={evt.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-8 py-5">
-                      <span className="font-bold text-gray-900 group-hover:text-bradesco-red transition-colors">{evt.eventName || evt.name}</span>
+                      <span className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">{evt.name}</span>
                     </td>
                     <td className="px-8 py-5">
                       <span className="px-3 py-1 bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-wider rounded-lg">
@@ -510,37 +430,29 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                     </td>
                     {selectedPlatform === "GA4" && (
                         <td className="px-8 py-5">
-                            <div className="flex items-center">
-                                {evt.isKeyEvent ? (
-                                    <span className="px-2.5 py-1 bg-purple-50 text-purple-700 font-bold text-[10px] uppercase tracking-wider rounded border border-purple-100 flex items-center gap-1">
-                                       <Target className="w-3 h-3" /> Sim
-                                    </span>
-                                ) : (
-                                    <span className="text-xs font-semibold text-gray-400">Não</span>
-                                )}
-                            </div>
+                            <span className="text-xs font-medium text-gray-600">{evt.propertyName || "-"}</span>
                         </td>
                     )}
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
                         {evt.status === 'ativo' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                         {evt.status === 'atenção' && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
-                        {evt.status === 'inativo' || !evt.status && <AlertCircle className="w-4 h-4 text-red-500" />}
+                        {evt.status === 'inativo' && <AlertCircle className="w-4 h-4 text-red-500" />}
                         <span className={`text-xs font-bold capitalize ${
                           evt.status === 'ativo' ? 'text-green-700' :
                           evt.status === 'atenção' ? 'text-yellow-700' : 'text-red-700'
                         }`}>
-                          {evt.status || 'ativo'}
+                          {evt.status}
                         </span>
                       </div>
                     </td>
-                    {selectedPlatform !== "GA4" && (
-                        <td className="px-8 py-5">
-                          <span className="text-sm font-medium text-gray-500">
-                             {evt.lastOccurrence}
-                          </span>
-                        </td>
-                    )}
+                    <td className="px-8 py-5">
+                      <span className="text-sm font-medium text-gray-500">
+                         {selectedPlatform === 'GA4' 
+                             ? (evt.eventCount !== undefined && evt.eventCount !== null ? evt.eventCount.toLocaleString('pt-BR') : "Sem volume disponível")
+                             : evt.lastOccurrence}
+                      </span>
+                    </td>
                   </tr>
                 ))}
                 {!loadingInitial && filteredEvents.length === 0 && (
@@ -550,7 +462,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                           <AlertCircle className="w-8 h-8 text-gray-300 mb-3" />
                           <p className="font-semibold text-gray-900">Nenhum evento encontrado</p>
                           {selectedPlatform === "GA4" && !isManualMode && (
-                              <p className="text-sm mt-1">Clique em <strong className="text-bradesco-red">Buscar eventos GA4</strong> no topo para iniciar a sincronização.</p>
+                              <p className="text-sm mt-1">Clique em <strong className="text-purple-600">Buscar eventos GA4</strong> no topo para iniciar a sincronização.</p>
                           )}
                       </div>
                     </td>
