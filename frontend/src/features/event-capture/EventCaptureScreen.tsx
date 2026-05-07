@@ -491,7 +491,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                           <AlertCircle className="w-8 h-8 text-gray-300 mb-3" />
                           <p className="font-semibold text-gray-900">Nenhum evento encontrado.</p>
                           {selectedPlatform === "GA4" && (
-                              <p className="text-sm mt-1">Clique em <strong className="text-purple-600">Buscar eventos GA4</strong> no topo para iniciar a sincronização.</p>
+                              <p className="text-sm mt-1">Clique em <strong className="text-purple-600">Sincronizar GA4</strong> no topo para iniciar a atualização.</p>
                           )}
                       </div>
                     </td>
