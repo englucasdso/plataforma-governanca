@@ -194,8 +194,29 @@ async function runGA4Collection() {
       return await page.evaluate(({ typeStr }) => {
           const eventsMap = new Map();
           
-          // No GA4 moderno, as tabelas usam mat-row, ga-event-table-row, ou tem role "row"
-          const rows = Array.from(document.querySelectorAll('tr, mat-row, ga-event-table-row, [role="row"]'));
+          // Especialmente para a aba/conteiner de Key Events que o usuário mencionou:
+          // "key_events_tab class=ng-star-inserted" "event-name ou event-name ng-star-inserted"
+          
+          let eventElements = Array.from(document.querySelectorAll('.event-name'));
+          
+          // Se encontrou usando a classe específica do GA4
+          if (eventElements.length > 0) {
+              for (const el of eventElements) {
+                  let name = el.innerText.trim().split('\n')[0];
+                  if (name && name.length > 1 && name.length < 100 && !name.includes("carregando")) {
+                     eventsMap.set(name, {
+                           platform: "GA4",
+                           eventName: name,
+                           eventType: typeStr, // Key Event ou Recent Event
+                           status: "Ativo"
+                     });
+                  }
+              }
+              return Array.from(eventsMap.values());
+          }
+          
+          // Caso a versão da UI seja ligeiramente diferente, fallback para a busca customizada nas linhas
+          const rows = Array.from(document.querySelectorAll('tr, mat-row, ga-event-table-row, [role="row"], .particle-table-row'));
           console.log(`[GA4 Extract] Encontradas ${rows.length} linhas de tabela para ${typeStr}.`);
           
           for (const row of rows) {
@@ -215,7 +236,8 @@ async function runGA4Collection() {
                    name = name.split('\n')[0].trim(); // Se a coluna também compôs múltiplos spans aglomerados
                    
                    // Nomes de eventos válidos normalmente são ex: "page_view", "click", "first_visit"
-                   if (name && name.length > 1 && name.length < 100 && !name.includes("carregando") && !name.includes("Nenhum")) {
+                   // Ignorar "COUNTRY" que costuma vir de outras tabelas ou selects na tela
+                   if (name && name.length > 1 && name.length < 100 && !name.includes("carregando") && !name.includes("Nenhum") && name.toUpperCase() !== "COUNTRY") {
                        eventsMap.set(name, {
                            platform: "GA4",
                            eventName: name,
@@ -224,9 +246,9 @@ async function runGA4Collection() {
                        });
                    }
                } else if (text.trim().length > 1) {
-                   // Fallback extremo: se não achou colunas pega a primeira linha do conteúdo condensado da row
+                   // Fallback extremo
                    let parsedName = text.trim().split('\n')[0].trim();
-                   if (parsedName.length > 1 && parsedName.length < 100 && !parsedName.includes("carregando") && !parsedName.includes("Nenhum")) {
+                   if (parsedName.length > 1 && parsedName.length < 100 && !parsedName.includes("carregando") && !parsedName.includes("Nenhum") && parsedName.toUpperCase() !== "COUNTRY") {
                        eventsMap.set(parsedName, {
                            platform: "GA4",
                            eventName: parsedName,
@@ -250,16 +272,25 @@ async function runGA4Collection() {
             let isRealAccount = /^\d+$/.test(acc.accountId);
             let accountPrefix = isRealAccount ? `a${acc.accountId}` : '';
             
+            // Visitamos sempre primeiro o painel Admin daquela propriedade para garantir que a sessão "mude" para ela
+            const fallbackAdminUrl = `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin`;
+            
+            console.log(`[GA4-PLAYWRIGHT] acessando Key Events para a property ${prop.propertyId} / ${prop.propertyName}...`);
+            
+            // Passo 1: Ir para o Admin da propriedade
+            console.log(`[GA4-PLAYWRIGHT] Inicializando UI Admin: ${fallbackAdminUrl}`);
+            await page.goto(fallbackAdminUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+            await page.waitForTimeout(3000); // Aguarda navegação
+            
+            // Passo 2: Ir para o Hub de eventos / Key events
             const targetUrlsKeyEvents = [
-                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/property/key-events`, // moderna
-                `https://analytics.google.com/analytics/web/#/p${prop.propertyId}/admin/property/key-events`,
-                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/conversions` // antiga
+                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/events/hub`, // user confirmed
+                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/property/key-events`, // se a primeira falhar
+                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/conversions` 
             ];
             
             const targetUrlsRecentEvents = [
                 `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/events`, // moderna
-                `https://analytics.google.com/analytics/web/#/p${prop.propertyId}/admin/events`,
-                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/events/hub` // legada
             ];
             
             let eventMap = new Map();
