@@ -29,11 +29,6 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   
   const [ga4Events, setGa4Events] = useState<any[]>([]);
   
-  const [manualPropertyId, setManualPropertyId] = useState<string>('');
-  const [isManualMode, setIsManualMode] = useState<boolean>(false);
-  const [loadingManual, setLoadingManual] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [syncJob, setSyncJob] = useState({ active: false, step: 0, status: 'idle', errorMsg: '' });
   const [hasScrapedData, setHasScrapedData] = useState(false);
@@ -66,10 +61,10 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   };
 
   useEffect(() => {
-    if (selectedPlatform === "GA4" && !isManualMode) {
+    if (selectedPlatform === "GA4") {
         loadSavedEvents();
     }
-  }, [selectedPlatform, isManualMode]);
+  }, [selectedPlatform]);
 
   useEffect(() => {
       let interval: any;
@@ -140,26 +135,22 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
     }
   }, [selectedAccountId]);
 
-  const handleStartSync = async () => {
-      if (!selectedAccountId || !selectedPropertyId) return;
-      
-      const account = accounts.find(a => a.name.split('/')[1] === selectedAccountId || a.name === `accounts/${selectedAccountId}`);
-      const property = properties.find(p => p.name.split('/')[1] === selectedPropertyId || p.name === `properties/${selectedPropertyId}`);
-      
-      const accountName = account?.displayName || 'Desconhecido';
-      const propertyName = property?.displayName || 'Desconhecida';
+  const [selectedAccountFilter, setSelectedAccountFilter] = useState('');
+  const [selectedPropertyFilter, setSelectedPropertyFilter] = useState('');
 
+  const availableAccounts = Array.from(new Set(ga4Events.map(e => e.accountId))).map(id => {
+      return ga4Events.find(e => e.accountId === id);
+  }).filter(Boolean);
+  
+  const availableProperties = Array.from(new Set(ga4Events.filter(e => !selectedAccountFilter || e.accountId === selectedAccountFilter).map(e => e.propertyId))).map(id => {
+      return ga4Events.find(e => e.propertyId === id);
+  }).filter(Boolean);
+
+  const handleStartSync = async () => {
       setShowAuthModal(false);
       try {
           const res = await fetch("/api/events/ga4/sync", { 
-              method: "POST",
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  accountId: selectedAccountId,
-                  accountName,
-                  propertyId: selectedPropertyId,
-                  propertyName
-              })
+              method: "POST"
           });
           if (res.ok) {
               setSyncJob({ active: true, step: 1, status: 'running', errorMsg: '' });
@@ -172,7 +163,11 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   };
 
   const filteredEvents = selectedPlatform === "GA4" 
-    ? ga4Events.map((evt, idx) => ({
+    ? ga4Events.filter(evt => {
+        if (selectedAccountFilter && evt.accountId !== selectedAccountFilter) return false;
+        if (selectedPropertyFilter && evt.propertyId !== selectedPropertyFilter) return false;
+        return true;
+      }).map((evt, idx) => ({
         ...evt,
         id: evt.id || `ga4-${idx}`,
         name: evt.name || evt.eventName || "Desconhecido",
@@ -205,54 +200,17 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                         <p className="text-gray-500 font-medium mb-8 text-sm">
                             Sincronize os dados através de acesso assistido (Playwright).
                         </p>
-                        <div className="w-full bg-gray-50 rounded-2xl p-4 mb-4 text-left border border-gray-100 flex items-start gap-3">
+                        <div className="w-full bg-gray-50 rounded-2xl p-4 mb-8 text-left border border-gray-100 flex items-start gap-3">
                             <CheckCircle2 className="w-5 h-5 text-bradesco-red shrink-0 mt-0.5" />
                             <p className="text-sm font-medium text-gray-600 leading-tight">
-                                Selecione uma Conta e uma Property abaixo. O sistema iniciará a coleta assistida usando Playwright.
+                                O sistema iniciará a sincronização passando por todas as accounts associadas e coletando propriedades usando Playwright.
                             </p>
                         </div>
                         
-                        <div className="w-full flex flex-col gap-4 mb-8 text-left">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Conta (ADC)</label>
-                                <select 
-                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-bradesco-red/20 focus:border-bradesco-red transition-all"
-                                    value={selectedAccountId}
-                                    onChange={(e) => setSelectedAccountId(e.target.value)}
-                                    disabled={isLoadingAccounts}
-                                >
-                                    <option value="">{isLoadingAccounts ? "Carregando Contas..." : "Selecione uma conta"}</option>
-                                    {accounts?.map((acc: any) => (
-                                        <option key={acc.name} value={acc.name.split('/')[1] || acc.name}>
-                                            {acc.displayName || acc.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Property (ADC)</label>
-                                <select 
-                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-bradesco-red/20 focus:border-bradesco-red transition-all"
-                                    value={selectedPropertyId}
-                                    onChange={(e) => setSelectedPropertyId(e.target.value)}
-                                    disabled={!selectedAccountId || isLoadingProperties}
-                                >
-                                    <option value="">{isLoadingProperties ? "Carregando Properties..." : "Selecione uma property"}</option>
-                                    {properties?.map((prop: any) => (
-                                        <option key={prop.name} value={prop.name.split('/')[1] || prop.name}>
-                                            {prop.displayName || prop.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
                         <div className="flex flex-col gap-3 w-full">
                             <button 
                                 onClick={handleStartSync}
-                                disabled={!selectedAccountId || !selectedPropertyId}
-                                className="w-full py-4 bg-bradesco-red text-white rounded-[20px] font-bold text-sm tracking-wide disabled:opacity-50 disabled:cursor-not-allowed hover:bg-black transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5"
+                                className="w-full py-4 bg-bradesco-red text-white rounded-[20px] font-bold text-sm tracking-wide hover:bg-black transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5"
                             >
                                 Iniciar Sincronização
                             </button>
@@ -337,42 +295,14 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
             {selectedPlatform === "GA4" && (
                 <div className="flex gap-3">
                     <button 
-                        onClick={() => setIsManualMode(!isManualMode)}
-                        className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${isManualMode ? 'bg-gray-100 text-gray-900 border border-gray-200' : 'text-gray-500 border border-transparent hover:bg-gray-50'}`}
+                        onClick={() => setShowAuthModal(true)}
+                        className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-full font-bold text-sm tracking-wide hover:bg-purple-700 transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 whitespace-nowrap"
                     >
-                        {isManualMode ? "Voltar ao Modo Salvo" : "Busca Manual"}
+                        Buscar eventos GA4
                     </button>
-                    {!isManualMode && (
-                        <button 
-                            onClick={() => setShowAuthModal(true)}
-                            className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-full font-bold text-sm tracking-wide hover:bg-purple-700 transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 whitespace-nowrap"
-                        >
-                            Buscar eventos GA4
-                        </button>
-                    )}
                 </div>
             )}
         </div>
-        
-        {selectedPlatform === "GA4" && isManualMode && (
-            <div className="flex items-center gap-4 mt-6 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
-                <input 
-                    type="text" 
-                    value={manualPropertyId}
-                    onChange={e => setManualPropertyId(e.target.value)}
-                    placeholder="Property ID (Ex: 123456789)"
-                    className="pl-4 pr-4 py-2 bg-white border border-purple-200 rounded-lg text-sm font-medium focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-200 transition-all min-w-[200px]"
-                />
-                <button 
-                    onClick={handleManualFetch}
-                    disabled={loadingManual}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
-                >
-                    {loadingManual ? "Buscando..." : "Buscar Agora"}
-                </button>
-                {errorMsg && <p className="text-xs font-bold text-red-600 uppercase tracking-widest">{errorMsg}</p>}
-            </div>
-        )}
         
         {selectedPlatform && selectedPlatform !== "GA4" && (
           <div className="flex gap-4 mt-6">
@@ -471,13 +401,45 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
       ) : (
         <div className="glass-card rounded-[32px] border border-gray-100 overflow-hidden bg-white shadow-sm">
           <div className="overflow-x-auto border-b border-gray-50">
-            <div className="flex items-center justify-between px-8 py-4">
-              <button 
-                onClick={() => onSelectPlatform(null)}
-                className="flex items-center gap-2 text-xs font-black text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-widest"
-              >
-                <ChevronLeft className="w-4 h-4" /> Voltar
-              </button>
+            <div className="flex flex-col gap-4 px-8 py-4 bg-gray-50/50">
+              <div className="flex items-center justify-between">
+                <button 
+                  onClick={() => onSelectPlatform(null)}
+                  className="flex items-center gap-2 text-xs font-black text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-widest"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Voltar
+                </button>
+              </div>
+              
+              {selectedPlatform === "GA4" && (
+                  <div className="flex items-center gap-4">
+                      <select 
+                          className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-purple-200 transition-all min-w-[200px]"
+                          value={selectedAccountFilter}
+                          onChange={(e) => {
+                              setSelectedAccountFilter(e.target.value);
+                              setSelectedPropertyFilter(''); // Reset property when account changes
+                          }}
+                      >
+                          <option value="">Todas as Contas</option>
+                          {availableAccounts.map(acc => (
+                              <option key={acc.accountId} value={acc.accountId}>{acc.accountName || acc.accountId}</option>
+                          ))}
+                      </select>
+                      
+                      <select 
+                          className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-purple-200 transition-all min-w-[200px]"
+                          value={selectedPropertyFilter}
+                          onChange={(e) => setSelectedPropertyFilter(e.target.value)}
+                          disabled={!selectedAccountFilter && availableProperties.length > 50} // Optional disabled check
+                      >
+                          <option value="">Todas as Properties</option>
+                          {availableProperties.map(prop => (
+                              <option key={prop.propertyId} value={prop.propertyId}>{prop.propertyName || prop.propertyId}</option>
+                          ))}
+                      </select>
+                  </div>
+              )}
             </div>
             <table className="w-full text-left">
               <thead>
@@ -546,7 +508,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                       <div className="flex flex-col items-center">
                           <AlertCircle className="w-8 h-8 text-gray-300 mb-3" />
                           <p className="font-semibold text-gray-900">Nenhum evento encontrado para esta property.</p>
-                          {selectedPlatform === "GA4" && !isManualMode && (
+                          {selectedPlatform === "GA4" && (
                               <p className="text-sm mt-1">Clique em <strong className="text-purple-600">Buscar eventos GA4</strong> no topo para iniciar a sincronização.</p>
                           )}
                       </div>

@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 let globalContext = null;
 let isCollecting = false;
 
-async function runGA4Collection({ accountId, accountName, propertyId, propertyName }) {
+async function runGA4Collection(properties) {
   if (isCollecting) {
     throw new Error('A sincronização já está em andamento. Aguarde...');
   }
@@ -13,7 +13,6 @@ async function runGA4Collection({ accountId, accountName, propertyId, propertyNa
 
   try {
     const userDataDir = path.resolve('data/playwright_ga4_session');
-    console.log(`[GA4-PLAYWRIGHT] iniciando navegador em: ${userDataDir}`);
     
     // Tentativa Headful primeiro para não dar erro se precisar logar, mas podemos colocar headless se tiver sessão
     let context = await chromium.launchPersistentContext(userDataDir, {
@@ -33,65 +32,61 @@ async function runGA4Collection({ accountId, accountName, propertyId, propertyNa
     globalContext = context;
     let page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
-    const targetUrl = `https://analytics.google.com/analytics/web/#/a${accountId}p${propertyId}/admin/events/hub`;
-    console.log(`[GA4-PLAYWRIGHT] abrindo ${targetUrl}`);
-    
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    
-    let currentUrl = page.url();
-    let needsLogin = false;
-    
-    if (currentUrl.includes('accounts.google.com') || currentUrl.includes('ServiceLogin')) {
-       needsLogin = true;
-       console.log('[GA4-PLAYWRIGHT] Sessão não autenticada. Reiniciando em modo assistido (Headful) para login...');
-       await context.close();
-       
-       context = await chromium.launchPersistentContext(userDataDir, {
-          headless: false,
-          channel: 'chrome',
-          ignoreHTTPSErrors: true,
-          viewport: null,
-          args: [
-            '--start-maximized',
-            '--ignore-certificate-errors',
-            '--no-sandbox', 
-            '--disable-setuid-sandbox', 
-            '--disable-web-security'
-          ]
-       });
-       globalContext = context;
-       page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
-       
-       console.log(`[GA4-PLAYWRIGHT] (Headful) Navegando para auth...`);
-       await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-       
-       console.log('[GA4-PLAYWRIGHT] aguardando login manual pelo usuário (Timeout: 5 minutos)');
-       try {
-           await page.waitForURL(/analytics\.google\.com\/analytics\/web/, { timeout: 300000 });
-       } catch(e) {
-           throw new Error("Tempo limite para login esgotado ou URL do GA4 não alcançada.");
-       }
-       
-       console.log('[GA4-PLAYWRIGHT] login detectado no modo assistido!');
-       // Dá um tempinho extra para SPA do GA4 carregar
-       await page.waitForTimeout(5000);
-       
-       currentUrl = page.url();
-       if (!currentUrl.includes(`p${propertyId}`)) {
-         console.log(`[GA4-PLAYWRIGHT] redirecionando novamente para a property destino após login...`);
-         await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-       }
+    let firstProp = properties[0];
+    if (firstProp) {
+        let testUrl = `https://analytics.google.com/analytics/web/#/a${firstProp.accountId}p${firstProp.propertyId}/admin/events/hub`;
+        await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        
+        let currentUrl = page.url();
+        let needsLogin = false;
+        
+        if (currentUrl.includes('accounts.google.com') || currentUrl.includes('ServiceLogin')) {
+           needsLogin = true;
+           console.log('[GA4-PLAYWRIGHT] Sessão não autenticada. Reiniciando em modo assistido (Headful) para login...');
+           await context.close();
+           
+           context = await chromium.launchPersistentContext(userDataDir, {
+              headless: false,
+              channel: 'chrome',
+              ignoreHTTPSErrors: true,
+              viewport: null,
+              args: [
+                '--start-maximized',
+                '--ignore-certificate-errors',
+                '--no-sandbox', 
+                '--disable-setuid-sandbox', 
+                '--disable-web-security'
+              ]
+           });
+           globalContext = context;
+           page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+           
+           console.log(`[GA4-PLAYWRIGHT] (Headful) Navegando para auth...`);
+           await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+           
+           console.log('[GA4-PLAYWRIGHT] aguardando login manual pelo usuário (Timeout: 5 minutos)');
+           try {
+               await page.waitForURL(/analytics\.google\.com\/analytics\/web/, { timeout: 300000 });
+           } catch(e) {
+               throw new Error("Tempo limite para login esgotado ou URL do GA4 não alcançada.");
+           }
+           
+           console.log('[GA4-PLAYWRIGHT] login detectado no modo assistido!');
+           // Dá um tempinho extra para SPA do GA4 carregar
+           await page.waitForTimeout(5000);
+           
+           currentUrl = page.url();
+           if (!currentUrl.includes(`p${firstProp.propertyId}`)) {
+             console.log(`[GA4-PLAYWRIGHT] redirecionando novamente para a property destino após login...`);
+             await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+           }
+        }
     }
-
-    console.log('[GA4-PLAYWRIGHT] Sessão validada. Coletando accounts/properties/eventos');
-    
-    // Espera a página carregar (Pode haver skeleton loading no GA4)
-    await page.waitForTimeout(10000);
 
     const finalEvents = [];
 
     // Helper para extrair da tabela atual
-    const extractFromCurrentTable = async (typeStr) => {
+    const extractFromCurrentTable = async (typeStr, prop) => {
       return await page.evaluate(({ typeStr, accountId, accountName, propertyId, propertyName }) => {
           const events = [];
           const rows = Array.from(document.querySelectorAll('tr, .particle-table-row, mat-row'));
@@ -118,36 +113,40 @@ async function runGA4Collection({ accountId, accountName, propertyId, propertyNa
                }
           }
           return events;
-      }, { typeStr, accountId, accountName, propertyId, propertyName });
+      }, { typeStr, accountId: prop.accountId, accountName: prop.accountName, propertyId: prop.propertyId, propertyName: prop.displayName });
     };
 
-    console.log('[GA4-PLAYWRIGHT] coletando aba Key events');
-    const keyEventsTable = await extractFromCurrentTable("Key event");
-    if (keyEventsTable && keyEventsTable.length > 0) {
-        finalEvents.push(...keyEventsTable);
+    for (const prop of properties) {
+        console.log(`[GA4-PLAYWRIGHT] acessando property: ${prop.displayName}/${prop.propertyId}`);
+        const targetUrl = `https://analytics.google.com/analytics/web/#/a${prop.accountId}p${prop.propertyId}/admin/events/hub`;
+        console.log(`[GA4-PLAYWRIGHT] url: ${targetUrl}`);
+        
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.waitForTimeout(5000); // Wait for potential skeleton loaders per property
+        
+        console.log('[GA4-PLAYWRIGHT] coletando Key events');
+        const keyEventsTable = await extractFromCurrentTable("Key event", prop);
+        if (keyEventsTable && keyEventsTable.length > 0) {
+            finalEvents.push(...keyEventsTable);
+        }
+        
+        console.log('[GA4-PLAYWRIGHT] coletando Recent events');
+        const allEventsTable = await extractFromCurrentTable("Recent event", prop);
+        allEventsTable.forEach(evt => {
+           if (!finalEvents.find(e => e.eventName === evt.eventName && e.propertyId === evt.propertyId)) {
+               finalEvents.push(evt);
+           }
+        });
     }
-    
-    console.log('[GA4-PLAYWRIGHT] coletando aba Recent events');
-    // Em uma implementação real, clicaríamos na aba. Por agora, extraímos a tabela atual, que geralmente contém os eventos.
-    // Como simplificação via dom manipulation, para evitar erros de selectores quebrados do GA4 (que muda os ids),
-    // apenas listamos todos os eventos da primeira tabela que ele exibir (geralmente Existing events) se não tivermos sucesso testando abas específicas, 
-    // ou tentamos clicar na aba "Existing events" / "All events".
-    // Isso é um placeholder que extrai o que estiver visível na view.
-    const allEventsTable = await extractFromCurrentTable("Event");
-    allEventsTable.forEach(evt => {
-       if (!finalEvents.find(e => e.eventName === evt.eventName)) {
-           evt.eventType = "Recent event";
-           finalEvents.push(evt);
-       }
-    });
 
     console.log(`[GA4-PLAYWRIGHT] eventos encontrados: ${finalEvents.length}`);
 
     const dataDir = path.resolve('data');
     await fs.mkdir(dataDir, { recursive: true });
     const filePath = path.resolve(dataDir, 'ga4-events.json');
-    console.log(`[GA4-PLAYWRIGHT] salvando backend/data/ga4-events.json`);
+    console.log(`[GA4-SYNC] salvando backend/data/ga4-events.json`);
     await fs.writeFile(filePath, JSON.stringify(finalEvents, null, 2), 'utf8');
+    console.log(`[GA4-SYNC] finalizado`);
 
     await context.close();
     globalContext = null;

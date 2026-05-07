@@ -76,12 +76,16 @@ export async function getAccounts() {
   try {
     const auth = await getAuth();
     const adminClient = new AnalyticsAdminServiceClient({ auth, fallback: true });
+    
+    console.log("[GA4-API] listando accounts");
     const [accounts] = await adminClient.listAccounts();
     console.log(`[GA4-API] accounts encontradas: ${accounts.length}`);
+    
     return accounts.map(a => {
       return {
         name: a.name,
-        displayName: a.displayName
+        displayName: a.displayName,
+        accountId: a.name?.split('/')[1]
       }
     });
   } catch (error: any) {
@@ -97,21 +101,23 @@ export async function getProperties(parentAccount?: string) {
     const auth = await getAuth();
     const adminClient = new AnalyticsAdminServiceClient({ auth, fallback: true });
     
-    // If parentAccount isn't provided, fetch all accounts first
     const accountsToList = parentAccount 
-      ? [parentAccount] 
-      : (await getAccounts()).map(a => a.name);
+      ? [{name: parentAccount, displayName: parentAccount, accountId: parentAccount.split('/')[1]}] 
+      : (await getAccounts());
 
     const allProperties = [];
     
-    for (const accountName of accountsToList) {
-        if (!accountName) continue;
+    for (const account of accountsToList) {
+        if (!account.name) continue;
+        console.log(`[GA4-API] listando properties da account: ${account.displayName}/${account.accountId}`);
         const [properties] = await adminClient.listProperties({
-            filter: `parent:${accountName}`
+            filter: `parent:${account.name}`
         });
         
         for (const prop of properties) {
             allProperties.push({
+                accountId: account.accountId,
+                accountName: account.displayName,
                 name: prop.name,
                 displayName: prop.displayName,
                 propertyId: prop.name?.split('/')[1]
