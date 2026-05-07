@@ -179,12 +179,12 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                             Atualização GA4
                         </h2>
                         <p className="text-gray-500 font-medium mb-8 text-sm">
-                            Sincronize os dados através de acesso assistido (Playwright).
+                            Sincronize os dados das suas contas e propriedades de forma automática.
                         </p>
                         <div className="w-full bg-gray-50 rounded-2xl p-4 mb-8 text-left border border-gray-100 flex items-start gap-3">
                             <CheckCircle2 className="w-5 h-5 text-bradesco-red shrink-0 mt-0.5" />
                             <p className="text-sm font-medium text-gray-600 leading-tight">
-                                O sistema iniciará a sincronização passando por todas as accounts associadas e coletando propriedades usando Playwright.
+                                O sistema coletará eventos passando por todas as contas e propriedades no GA4 em background.
                             </p>
                         </div>
                         

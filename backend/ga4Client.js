@@ -14,7 +14,7 @@ async function runGA4Collection() {
   try {
     const userDataDir = path.resolve('backend/data/playwright_ga4_session');
     
-    console.log('[GA4-PLAYWRIGHT] iniciando navegador com sessão persistente');
+    console.log('[GA4-PLAYWRIGHT] usando sessão persistente');
     console.log('[GA4-PLAYWRIGHT] iniciando modo headless');
     let context = await chromium.launchPersistentContext(userDataDir, {
       headless: true, // Modo headless conforme requisitado
@@ -38,19 +38,12 @@ async function runGA4Collection() {
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     
     let currentUrl = page.url();
-    let needsLogin = false;
     
     if (currentUrl.includes('accounts.google.com') || currentUrl.includes('ServiceLogin')) {
-       needsLogin = true;
-       console.log('[GA4-PLAYWRIGHT] aguardando login manual pelo usuário (Timeout: 5 minutos)');
-       try {
-           await page.waitForURL(/analytics\.google\.com\/analytics\/web/, { timeout: 300000 });
-       } catch(e) {
-           throw new Error("Tempo limite para login esgotado ou URL do GA4 não alcançada.");
-       }
+       throw new Error("Sessão GA4 não encontrada ou expirada. Abra o GA4 uma vez no navegador assistido para criar a sessão.");
     }
 
-    console.log('[GA4-PLAYWRIGHT] login detectado');
+    console.log('[GA4-PLAYWRIGHT] acessando GA4');
     await page.waitForTimeout(5000); // Espera o SPA carregar
     
     currentUrl = page.url();
@@ -180,10 +173,10 @@ async function runGA4Collection() {
 
     for (const acc of hierarchy) {
         console.log(`[GA4-PLAYWRIGHT] account encontrada: ${acc.accountName}`);
+        console.log(`[GA4-PLAYWRIGHT] properties encontradas: ${acc.properties.length}`);
         
         for (const prop of acc.properties) {
-            console.log(`[GA4-PLAYWRIGHT] property encontrada: ${prop.propertyName}`);
-            console.log(`[GA4-PLAYWRIGHT] acessando Events Hub`);
+            console.log(`[GA4-PLAYWRIGHT] acessando Events Hub para a property ${prop.propertyName}`);
             const targetUrl = `https://analytics.google.com/analytics/web/#/a${acc.accountId}p${prop.propertyId}/admin/events/hub`;
             
             await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -217,7 +210,6 @@ async function runGA4Collection() {
     };
     
     const filePath = path.resolve(dataDir, 'ga4-events.json');
-    console.log(`[GA4-SYNC] salvando JSON local`);
     console.log(`[GA4-SYNC] salvando backend/data/ga4-events.json`);
     await fs.writeFile(filePath, JSON.stringify(finalData, null, 2), 'utf8');
     console.log(`[GA4-SYNC] sincronização finalizada`);
