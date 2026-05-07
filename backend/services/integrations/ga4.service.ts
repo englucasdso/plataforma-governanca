@@ -51,10 +51,11 @@ function handleProxyError(error: any) {
 
 export async function checkStatus() {
   try {
-    console.log("[GA4] verificando ADC");
+    console.log("[GA4-AUTH] verificando ADC");
     const auth = await getAuth();
     // Verify if we can get credentials (implicitly checks ADC availability)
     const client = await auth.getClient();
+    console.log("[GA4-AUTH] ADC OK");
     
     return {
       connected: true,
@@ -73,22 +74,17 @@ export async function checkStatus() {
 
 export async function getAccounts() {
   try {
-    console.log("[GA4] listando accounts");
     const auth = await getAuth();
-    console.log("[GA4] usando REST fallback, não gRPC");
-    console.log("[GA4] listando accounts via REST");
     const adminClient = new AnalyticsAdminServiceClient({ auth, fallback: true });
     const [accounts] = await adminClient.listAccounts();
-    console.log(`[GA4] accounts encontradas: ${accounts.length}`);
+    console.log(`[GA4-API] accounts encontradas: ${accounts.length}`);
     return accounts.map(a => {
-      console.log(`[GA4] account encontrada: ${a.name} / ${a.displayName}`);
       return {
         name: a.name,
         displayName: a.displayName
       }
     });
   } catch (error: any) {
-    console.error("[GA4][ERRO] listando accounts:", error.message);
     if (error.message.includes("Could not load the default credentials")) {
         throw new Error("ADC não configurado. Execute gcloud auth application-default login.");
     }
@@ -98,15 +94,7 @@ export async function getAccounts() {
 
 export async function getProperties(parentAccount?: string) {
   try {
-    if (parentAccount) {
-        console.log(`[GA4] listando properties da account ${parentAccount}`);
-    } else {
-        console.log(`[GA4] listando properties de todas as accounts`);
-    }
-    
     const auth = await getAuth();
-    console.log("[GA4] usando REST fallback, não gRPC");
-    console.log("[GA4] listando properties via REST");
     const adminClient = new AnalyticsAdminServiceClient({ auth, fallback: true });
     
     // If parentAccount isn't provided, fetch all accounts first
@@ -123,7 +111,6 @@ export async function getProperties(parentAccount?: string) {
         });
         
         for (const prop of properties) {
-            console.log(`[GA4] property encontrada: ${prop.name} / ${prop.displayName}`);
             allProperties.push({
                 name: prop.name,
                 displayName: prop.displayName,
@@ -132,9 +119,9 @@ export async function getProperties(parentAccount?: string) {
         }
     }
     
+    console.log(`[GA4-API] properties encontradas: ${allProperties.length}`);
     return allProperties;
   } catch (error: any) {
-    console.error("[GA4][ERRO] listando properties:", error.message);
     throw handleProxyError(error);
   }
 }

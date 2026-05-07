@@ -14,12 +14,12 @@ const router = express.Router();
 
 let syncJob = { active: false, step: 0, status: "idle", errorMsg: "" };
 
-async function runGa4Sync() {
+async function runGa4Sync(target: { accountId: string, accountName: string, propertyId: string, propertyName: string }) {
     try {
-        syncJob.step = 1; // Iniciando navegador
+        syncJob.step = 1; // Playwright / Setup local
         
-        syncJob.step = 2; // Extraindo dados via Playwright
-        const events = await runGA4Collection();
+        syncJob.step = 2; // Extraindo dados
+        const events = await runGA4Collection(target);
         
         syncJob.step = 3; // Sucesso
         syncJob.status = "success";
@@ -66,9 +66,18 @@ router.post("/ga4/sync", (req, res) => {
        res.status(400).json({ error: "Sync already running" });
        return;
    }
+   
+   const target = req.body;
+   if (!target || !target.accountId || !target.propertyId) {
+      res.status(400).json({ error: "Parâmetros accountId e propertyId são obrigatórios." });
+      return;
+   }
+
+   console.log(`[GA4-API] conta selecionada: ${target.accountName}/${target.accountId}`);
+   console.log(`[GA4-API] property selecionada: ${target.propertyName}/${target.propertyId}`);
    syncJob = { active: true, step: 0, status: "running", errorMsg: "" };
    
-   runGa4Sync().catch(console.error);
+   runGa4Sync(target).catch(console.error);
 
    res.json({ message: "Started" });
 });
