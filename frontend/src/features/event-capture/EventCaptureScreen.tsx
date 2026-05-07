@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Target, ArrowRight, Activity, Search, Filter, CheckCircle2, AlertTriangle, AlertCircle, ChevronLeft } from 'lucide-react';
+import { Target, ArrowRight, Activity, Search, Filter, CheckCircle2, AlertTriangle, AlertCircle, ChevronLeft, Loader2, Cloud, KeyRound } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { TypewriterText } from '../../components/TypewriterText';
 
 const MOCK_EVENTS = [
@@ -26,118 +27,89 @@ interface EventCaptureScreenProps {
 export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatform }: EventCaptureScreenProps) {
   const [ga4Status, setGa4Status] = useState<any>(null);
   
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
-  
-  const [properties, setProperties] = useState<any[]>([]);
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string>('');
-  
   const [ga4Events, setGa4Events] = useState<any[]>([]);
   
   const [manualPropertyId, setManualPropertyId] = useState<string>('');
   const [isManualMode, setIsManualMode] = useState<boolean>(false);
-  
-  const [loadingState, setLoadingState] = useState<"status" | "accounts" | "properties" | "events" | null>(null);
+  const [loadingManual, setLoadingManual] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [syncJob, setSyncJob] = useState({ active: false, step: 0, status: 'idle', errorMsg: '' });
+  const [hasScrapedData, setHasScrapedData] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(false);
+
   useEffect(() => {
-    setLoadingState("status");
     fetch("/api/events/ga4/status")
       .then(res => res.json())
-      .then(data => {
-          setGa4Status(data);
-          setLoadingState(null);
-      })
-      .catch(err => {
-          console.error("Error fetching GA4 status", err);
-          setErrorMsg("Erro ao verificar status GA4.");
-          setLoadingState(null);
-      });
+      .then(data => setGa4Status(data))
+      .catch(err => console.error("Error fetching GA4 status", err));
   }, []);
 
-  // Fetch accounts when GA4 is selected and it's connected
-  useEffect(() => {
-    if (selectedPlatform === "GA4" && ga4Status?.connected && accounts.length === 0) {
-      setLoadingState("accounts");
-      setErrorMsg(null);
-      fetch("/api/events/ga4/accounts")
-        .then(async res => {
-            const data = await res.json();
-            if (res.ok && Array.isArray(data)) {
-                setAccounts(data);
+  const loadSavedEvents = () => {
+    setLoadingInitial(true);
+    fetch("/api/events/ga4/saved")
+        .then(res => res.json())
+        .then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+                setGa4Events(data);
+                setHasScrapedData(true);
             } else {
-                console.error("Failed to load accounts:", data);
-                setErrorMsg(data.error || "Erro ao listar contas GA4.");
+                setHasScrapedData(false);
             }
-            setLoadingState(null);
+            setLoadingInitial(false);
         })
         .catch(err => {
-            console.error("Error fetching GA4 accounts", err);
-            setErrorMsg("Falha ao comunicar com o servidor (accounts).");
-            setLoadingState(null);
+            console.error(err);
+            setLoadingInitial(false);
         });
-    }
-  }, [selectedPlatform, ga4Status, accounts.length]);
+  };
 
-  // Fetch properties when an account is selected
   useEffect(() => {
-    if (selectedPlatform === "GA4" && selectedAccountId) {
-      setLoadingState("properties");
-      setErrorMsg(null);
-      setProperties([]);
-      setSelectedPropertyId('');
-      setGa4Events([]);
-      
-      fetch(`/api/events/ga4/properties?account=${encodeURIComponent(selectedAccountId)}`)
-        .then(async res => {
-            const data = await res.json();
-            if (res.ok && Array.isArray(data)) {
-                setProperties(data);
-            } else {
-                console.error("Failed to load properties:", data);
-                setErrorMsg(data.error || "Erro ao listar propriedades GA4.");
-            }
-            setLoadingState(null);
-        })
-        .catch(err => {
-            console.error("Error fetching GA4 properties", err);
-            setErrorMsg("Falha ao comunicar com o servidor (properties).");
-            setLoadingState(null);
-        });
+    if (selectedPlatform === "GA4" && !isManualMode) {
+        loadSavedEvents();
     }
-  }, [selectedAccountId, selectedPlatform]);
+  }, [selectedPlatform, isManualMode]);
 
-  // Fetch events when a property is selected
   useEffect(() => {
-      if (selectedPlatform === "GA4" && selectedPropertyId && !isManualMode) {
-          setLoadingState("events");
-          setErrorMsg(null);
-          setGa4Events([]);
-          
-          fetch(`/api/events/ga4/events?propertyId=${selectedPropertyId}`)
-            .then(async res => {
-                const data = await res.json();
-                if (res.ok && Array.isArray(data)) {
-                    setGa4Events(data);
-                } else {
-                    console.error("Failed to load events:", data);
-                    setErrorMsg(data.error || "Erro ao buscar eventos GA4.");
-                }
-                setLoadingState(null);
-            })
-            .catch(err => {
-                console.error("Error fetching GA4 events", err);
-                setErrorMsg("Falha ao comunicar com o servidor (events).");
-                setLoadingState(null);
-            });
-      } else if (!isManualMode) {
-          setGa4Events([]);
+      let interval: any;
+      if (syncJob.active && syncJob.status === "running") {
+          interval = setInterval(() => {
+              fetch("/api/events/ga4/sync/status")
+                  .then(res => res.json())
+                  .then(data => {
+                      setSyncJob(data);
+                      if (data.status !== "running") {
+                          clearInterval(interval);
+                          if (data.status === "success") {
+                              loadSavedEvents();
+                              setTimeout(() => setSyncJob(s => ({ ...s, active: false })), 3000);
+                          }
+                      }
+                  })
+                  .catch(err => console.error(err));
+          }, 2000);
       }
-  }, [selectedPropertyId, selectedPlatform, isManualMode]);
+      return () => clearInterval(interval);
+  }, [syncJob.active, syncJob.status]);
+
+  const handleStartSync = async () => {
+      setShowAuthModal(false);
+      try {
+          const res = await fetch("/api/events/ga4/sync", { method: "POST" });
+          if (res.ok) {
+              setSyncJob({ active: true, step: 1, status: 'running', errorMsg: '' });
+          } else {
+              setSyncJob({ active: true, step: 0, status: 'error', errorMsg: 'Falha ao iniciar sincronização' });
+          }
+      } catch (err) {
+          console.error(err);
+      }
+  };
 
   const handleManualFetch = () => {
       if (!manualPropertyId.trim()) return;
-      setLoadingState("events");
+      setLoadingManual(true);
       setErrorMsg(null);
       setGa4Events([]);
       
@@ -150,12 +122,12 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 console.error("Failed to load events:", data);
                 setErrorMsg(data.error || "Erro ao buscar eventos GA4.");
             }
-            setLoadingState(null);
+            setLoadingManual(false);
         })
         .catch(err => {
             console.error("Error fetching GA4 events", err);
-            setErrorMsg("Falha ao comunicar com o servidor (events).");
-            setLoadingState(null);
+            setErrorMsg("Falha ao comunicar com o servidor.");
+            setLoadingManual(false);
         });
   };
 
@@ -174,81 +146,147 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
 
   return (
     <section className="flex flex-col flex-1 w-full max-w-5xl mx-auto pt-8 pb-12 px-6">
-      <div className={`flex flex-col mb-12 ${selectedPlatform ? '' : 'items-center text-center'}`}>
-        <div className="flex items-center gap-3">
-          <h2 className={`text-4xl font-normal text-gray-900 tracking-tight flex items-center gap-3 ${selectedPlatform ? 'mt-2' : ''}`}>
-            {selectedPlatform ? `Eventos em: ${selectedPlatform}` : <TypewriterText text="Qual fonte de eventos você deseja explorar?" />}
-          </h2>
-        </div>
-        
-        {selectedPlatform === "GA4" && ga4Status?.connected && (
-            <div className="flex flex-col gap-4 mt-6">
-                <div className="flex gap-4 items-center flex-wrap">
-                    {!isManualMode ? (
-                      <>
-                        <select 
-                            value={selectedAccountId}
-                            onChange={(e) => setSelectedAccountId(e.target.value)}
-                            className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
-                            disabled={loadingState === "accounts"}
-                        >
-                            <option value="">1. Selecione uma Conta</option>
-                            {accounts.map(a => (
-                                <option key={a.name} value={a.name}>{a.displayName || a.name}</option>
-                            ))}
-                        </select>
+      
+      <AnimatePresence>
+        {showAuthModal && (
+            <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md"
+            >
+                <div className="bg-white rounded-[40px] p-12 max-w-md w-full shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-purple-400" />
+                    <div className="flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-purple-50 rounded-3xl flex items-center justify-center mb-6 text-purple-600 shadow-sm">
+                            <KeyRound className="w-8 h-8" />
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+                            Atualização GA4
+                        </h2>
+                        <p className="text-gray-500 font-medium mb-8 text-sm">
+                            Sincronize os dados através do Google Cloud SDK (ADC).
+                        </p>
+                        <div className="w-full bg-gray-50 rounded-2xl p-4 mb-8 text-left border border-gray-100 flex items-start gap-3">
+                            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                            <p className="text-sm font-medium text-gray-600 leading-tight">
+                                Sessão <strong className="text-gray-900">ADC</strong> detectada. A atualização roda em background e os eventos são salvos na nossa base de dados.
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-3 w-full">
+                            <button 
+                                onClick={handleStartSync}
+                                className="w-full py-4 bg-gray-900 text-white rounded-[20px] font-bold text-sm tracking-wide hover:bg-gray-800 transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5"
+                            >
+                                Iniciar Sincronização
+                            </button>
+                            <button 
+                                onClick={() => setShowAuthModal(false)}
+                                className="w-full py-4 text-gray-500 font-bold hover:text-gray-900 transition-colors text-sm"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
 
-                        <select 
-                            value={selectedPropertyId}
-                            onChange={(e) => setSelectedPropertyId(e.target.value)}
-                            className="pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
-                            disabled={!selectedAccountId || loadingState === "properties"}
-                        >
-                            <option value="">2. Selecione uma Propriedade</option>
-                            {properties.map(p => (
-                                <option key={p.propertyId} value={p.propertyId}>{p.displayName || p.name}</option>
-                            ))}
-                        </select>
-                        <button onClick={() => setIsManualMode(true)} className="text-sm font-medium text-gray-500 underline ml-2">Usar ID Manual</button>
-                      </>
-                    ) : (
-                      <>
-                        <input 
-                            type="text" 
-                            value={manualPropertyId}
-                            onChange={e => setManualPropertyId(e.target.value)}
-                            placeholder="Property ID (Ex: 123456789)"
-                            className="pl-4 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all min-w-[200px]"
-                        />
+      <AnimatePresence>
+        {syncJob.active && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50, scale: 0.9 }} 
+              animate={{ opacity: 1, y: 0, scale: 1 }} 
+              exit={{ opacity: 0, y: 50, scale: 0.9 }}
+              className="fixed bottom-6 right-6 z-[100] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-80 flex flex-col gap-3 overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
+                <div 
+                  className={`h-full transition-all duration-500 ease-out ${syncJob.status === 'error' ? 'bg-red-500' : syncJob.status === 'success' ? 'bg-green-500' : 'bg-purple-600'}`} 
+                  style={{ width: `${Math.min(100, Math.round((syncJob.step / 4) * 100))}%` }}
+                />
+              </div>
+              
+              <div className="flex items-start justify-between mt-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
+                     {syncJob.status === "running" && <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />}
+                     {syncJob.status === "success" && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                     {syncJob.status === "error" && <AlertTriangle className="w-5 h-5 text-red-500" />}
+                  </div>
+                  <div className="flex flex-col flex-1">
+                    <span className="font-bold text-gray-900 text-sm">
+                      {syncJob.status === "running" ? "Sincronizando..." : syncJob.status === "success" ? "Concluído" : "Falha na Sincronização"}
+                    </span>
+                    <span className="text-xs font-medium text-gray-500 mt-0.5">
+                      {syncJob.status === "error" 
+                        ? "Erro no processo"
+                        : ["Preparando...", "Verificando Autenticação ADC...", "Baixando eventos do Google Analytics via REST API...", "Salvando eventos localmente na base...", "Sincronização concluída!"][syncJob.step]}
+                    </span>
+                  </div>
+                </div>
+                {syncJob.status !== 'running' && (
+                  <button onClick={() => setSyncJob(s => ({ ...s, active: false }))} className="text-gray-400 hover:text-gray-600 ml-2">
+                    <AlertCircle className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {syncJob.errorMsg && (
+                 <div className="mt-2 text-xs font-medium bg-red-50 text-red-600 p-2.5 rounded-xl border border-red-100 uppercase tracking-wide">
+                    {syncJob.errorMsg}
+                 </div>
+              )}
+            </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className={`flex flex-col mb-12 ${selectedPlatform ? '' : 'items-center text-center'}`}>
+        <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3">
+            <h2 className={`text-4xl font-normal text-gray-900 tracking-tight flex items-center gap-3 ${selectedPlatform ? 'mt-2' : ''}`}>
+                {selectedPlatform ? `Eventos em: ${selectedPlatform}` : <TypewriterText text="Qual fonte de eventos você deseja explorar?" />}
+            </h2>
+            </div>
+            
+            {selectedPlatform === "GA4" && (
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setIsManualMode(!isManualMode)}
+                        className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${isManualMode ? 'bg-gray-100 text-gray-900 border border-gray-200' : 'text-gray-500 border border-transparent hover:bg-gray-50'}`}
+                    >
+                        {isManualMode ? "Voltar ao Modo Salvo" : "Busca Manual"}
+                    </button>
+                    {!isManualMode && (
                         <button 
-                            onClick={handleManualFetch}
-                            disabled={loadingState === "events"}
-                            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
+                            onClick={() => setShowAuthModal(true)}
+                            className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-full font-bold text-sm tracking-wide hover:bg-purple-700 transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 whitespace-nowrap"
                         >
-                            Buscar Eventos
+                            Buscar eventos GA4
                         </button>
-                        <button onClick={() => setIsManualMode(false)} className="text-sm font-medium text-gray-500 underline ml-2">Voltar para Seleção</button>
-                      </>
                     )}
                 </div>
-                
-                {loadingState && loadingState !== "status" && (
-                    <div className="flex items-center gap-2 text-sm font-medium text-purple-600">
-                        {loadingState === "accounts" && "Carregando contas..."}
-                        {loadingState === "properties" && "Carregando propriedades..."}
-                        {loadingState === "events" && "Buscando eventos da propriedade..."}
-                    </div>
-                )}
-                
-                {errorMsg && (
-                    <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 flex items-start gap-3 mt-2 text-sm font-medium max-w-2xl">
-                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                        <p>{errorMsg}</p>
-                    </div>
-                )}
+            )}
+        </div>
+        
+        {selectedPlatform === "GA4" && isManualMode && (
+            <div className="flex items-center gap-4 mt-6 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
+                <input 
+                    type="text" 
+                    value={manualPropertyId}
+                    onChange={e => setManualPropertyId(e.target.value)}
+                    placeholder="Property ID (Ex: 123456789)"
+                    className="pl-4 pr-4 py-2 bg-white border border-purple-200 rounded-lg text-sm font-medium focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-200 transition-all min-w-[200px]"
+                />
+                <button 
+                    onClick={handleManualFetch}
+                    disabled={loadingManual}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                >
+                    {loadingManual ? "Buscando..." : "Buscar Agora"}
+                </button>
+                {errorMsg && <p className="text-xs font-bold text-red-600 uppercase tracking-widest">{errorMsg}</p>}
             </div>
         )}
-
+        
         {selectedPlatform && selectedPlatform !== "GA4" && (
           <div className="flex gap-4 mt-6">
             <div className="relative">
@@ -365,7 +403,14 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filteredEvents.map((evt: any) => (
+                {loadingInitial ? (
+                  <tr>
+                    <td colSpan={selectedPlatform === "GA4" ? 5 : 4} className="px-8 py-10 text-center text-gray-500 flex flex-col items-center">
+                        <Loader2 className="w-8 h-8 text-purple-600 animate-spin mb-3" />
+                        <p className="font-semibold text-gray-900">Carregando dados salvos...</p>
+                    </td>
+                  </tr>
+                ) : filteredEvents.map((evt: any) => (
                   <tr key={evt.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <span className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">{evt.name}</span>
@@ -398,10 +443,16 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                     </td>
                   </tr>
                 ))}
-                {filteredEvents.length === 0 && loadingState !== "events" && (
+                {!loadingInitial && filteredEvents.length === 0 && (
                   <tr>
                     <td colSpan={selectedPlatform === "GA4" ? 5 : 4} className="px-8 py-10 text-center text-gray-500">
-                      Nenhum evento encontrado para esta plataforma.
+                      <div className="flex flex-col items-center">
+                          <AlertCircle className="w-8 h-8 text-gray-300 mb-3" />
+                          <p className="font-semibold text-gray-900">Nenhum evento encontrado</p>
+                          {selectedPlatform === "GA4" && !isManualMode && (
+                              <p className="text-sm mt-1">Clique em <strong className="text-purple-600">Buscar eventos GA4</strong> no topo para iniciar a sincronização.</p>
+                          )}
+                      </div>
                     </td>
                   </tr>
                 )}
