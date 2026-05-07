@@ -133,12 +133,11 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
 
   const filteredEvents = selectedPlatform === "GA4" 
     ? ga4Events.map((evt, idx) => ({
-        id: `ga4-${idx}`,
-        name: evt.eventName,
+        ...evt,
+        id: evt.id || `ga4-${idx}`,
+        name: evt.name || evt.eventName || "Desconhecido",
         platform: 'GA4',
-        status: 'ativo',
-        lastOccurrence: `${evt.eventCount} ocorrências`,
-        propertyName: evt.propertyName
+        status: evt.status || 'ativo',
       }))
     : selectedPlatform 
       ? MOCK_EVENTS.filter(e => e.platform === selectedPlatform)
@@ -154,9 +153,9 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md"
             >
                 <div className="bg-white rounded-[40px] p-12 max-w-md w-full shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-purple-400" />
+                    <div className="absolute top-0 left-0 w-full h-2 bg-bradesco-gradient" />
                     <div className="flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-purple-50 rounded-3xl flex items-center justify-center mb-6 text-purple-600 shadow-sm">
+                        <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-bradesco-red shadow-sm">
                             <KeyRound className="w-8 h-8" />
                         </div>
                         <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
@@ -166,7 +165,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                             Sincronize os dados através de acesso assistido (Playwright).
                         </p>
                         <div className="w-full bg-gray-50 rounded-2xl p-4 mb-8 text-left border border-gray-100 flex items-start gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
+                            <CheckCircle2 className="w-5 h-5 text-bradesco-red shrink-0 mt-0.5" />
                             <p className="text-sm font-medium text-gray-600 leading-tight">
                                 O sistema abrirá uma janela do <strong className="text-gray-900">Chrome</strong> para você fazer login no Google Analytics. Os eventos selecionados serão salvos na base.
                             </p>
@@ -174,7 +173,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                         <div className="flex flex-col gap-3 w-full">
                             <button 
                                 onClick={handleStartSync}
-                                className="w-full py-4 bg-gray-900 text-white rounded-[20px] font-bold text-sm tracking-wide hover:bg-gray-800 transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5"
+                                className="w-full py-4 bg-bradesco-red text-white rounded-[20px] font-bold text-sm tracking-wide hover:bg-black transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5"
                             >
                                 Iniciar Sincronização
                             </button>
@@ -201,7 +200,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
                 <div 
-                  className={`h-full transition-all duration-500 ease-out ${syncJob.status === 'error' ? 'bg-red-500' : syncJob.status === 'success' ? 'bg-green-500' : 'bg-purple-600'}`} 
+                  className={`h-full transition-all duration-500 ease-out ${syncJob.status === 'error' ? 'bg-red-500' : syncJob.status === 'success' ? 'bg-green-500' : 'bg-bradesco-red'}`} 
                   style={{ width: `${Math.min(100, Math.round((syncJob.step / 4) * 100))}%` }}
                 />
               </div>
@@ -209,7 +208,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
               <div className="flex items-start justify-between mt-1">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
-                     {syncJob.status === "running" && <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />}
+                     {syncJob.status === "running" && <Loader2 className="w-5 h-5 text-bradesco-red animate-spin" />}
                      {syncJob.status === "success" && <CheckCircle2 className="w-5 h-5 text-green-500" />}
                      {syncJob.status === "error" && <AlertTriangle className="w-5 h-5 text-red-500" />}
                   </div>
@@ -448,7 +447,11 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                       </div>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-medium text-gray-500">{evt.lastOccurrence}</span>
+                      <span className="text-sm font-medium text-gray-500">
+                         {selectedPlatform === 'GA4' 
+                             ? (evt.eventCount !== undefined && evt.eventCount !== null ? evt.eventCount.toLocaleString('pt-BR') : "Sem volume disponível")
+                             : evt.lastOccurrence}
+                      </span>
                     </td>
                   </tr>
                 ))}
