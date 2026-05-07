@@ -101,7 +101,7 @@ async function runGA4Collection() {
             // Formatos comuns do GA4: /a1234p5678 ou apenas /p5678
             let m = href.match(/a(\d+)p(\d+)/) || href.match(/\/p(\d+)/);
             if (m) {
-                let aId = m[2] ? m[1] : `Account-${Math.floor(Math.random()*1000)}`; 
+                let aId = m[2] ? m[1] : `DefaultAccount`; 
                 let pId = m[2] ? m[2] : m[1];
                 let text = link.innerText.trim().split('\n')[0];
                 
@@ -110,7 +110,7 @@ async function runGA4Collection() {
                     continue;
                 }
                 
-                let accName = aId.includes('Account-') ? "My Account" : `Account ${aId}`;
+                let accName = aId === 'DefaultAccount' ? "Conta Default" : `Conta ${aId}`;
                 
                 // Tenta achar o nome da conta perto do link (geralmente vem acima num container de lista)
                 let parent = link.closest('.account-row, [role="listitem"], [role="treeitem"], .vds-list');
@@ -122,9 +122,9 @@ async function runGA4Collection() {
                 }
                 
                 let acc = result.find(a => a.accountId === aId);
-                // Se aId foi gerado aleatório (ex: /p1234) tenta agrupar na "My Account"
-                if (!acc && aId.includes('Account-')) {
-                   acc = result.find(a => a.accountName === "My Account");
+                // Agrupa caso ainda não tenha (ou seja default)
+                if (!acc && aId === 'DefaultAccount') {
+                   acc = result.find(a => a.accountName === "Conta Default");
                 }
                 
                 if (!acc) {
@@ -142,26 +142,34 @@ async function runGA4Collection() {
             }
         }
         
-        // Fallback robusto se o account switcher falhar
+        // Fallback robusto se o account switcher falhar (garantir pelo menos a conta atual)
         if (result.length === 0) {
             const match = window.location.href.match(/a(\d+)p(\d+)/) || window.location.href.match(/\/p(\d+)/);
             if (match) {
-                let accId = match[2] ? match[1] : `Account_Current`;
+                let accId = match[2] ? match[1] : `CurrentAccount`;
                 let propId = match[2] ? match[2] : match[1];
                 
-                let nameLabels = Array.from(document.querySelectorAll('span, h1, h2, div')).filter(el => {
-                    let text = (el.innerText || "").trim();
-                    return text.length > 2 && text.length < 50 && !text.includes('\n');
-                });
-                
-                let propName = nameLabels.find(el => el.innerText.includes('Analytics'))?.innerText || `Property ${propId}`;
+                let accName = `Conta ${accId}`;
+                let propName = `Propriedade ${propId}`;
+
+                // Tenta obter o texto correto do seletor global do GA4 na barra superior
+                let selectorBtn = document.querySelector('[data-test-id="asset-selector-button"], .suites-asset-selector, button[aria-label*="conta"], button[title*="Analytics" i]');
+                if (selectorBtn && selectorBtn.innerText) {
+                    let parts = selectorBtn.innerText.split('\n').map(s=>s.trim()).filter(s=>s.length > 0 && !s.includes('Analytics'));
+                    if (parts.length >= 2) {
+                        accName = parts[0];
+                        propName = parts[1];
+                    } else if (parts.length === 1) {
+                        propName = parts[0];
+                    }
+                }
                 
                 result.push({
                     accountId: accId,
-                    accountName: accId.includes('Current') ? "Minha Conta Atual" : `Conta ${accId}`,
+                    accountName: accName,
                     properties: [{
                         propertyId: propId,
-                        propertyName: propName.replace('Google Analytics', '').trim() || `Propriedade ${propId}`,
+                        propertyName: propName,
                         events: []
                     }]
                 });
@@ -203,9 +211,11 @@ async function runGA4Collection() {
                                  .map(c => c.innerText.trim());
                
                if (cols.length >= 1) {
-                   const name = cols[0];
+                   let name = cols[0];
+                   name = name.split('\n')[0].trim(); // Se a coluna também compôs múltiplos spans aglomerados
+                   
                    // Nomes de eventos válidos normalmente são ex: "page_view", "click", "first_visit"
-                   if (name && name.length > 1 && name.length < 100 && !name.includes("carregando") && !name.includes('\n') && !name.includes("Nenhum")) {
+                   if (name && name.length > 1 && name.length < 100 && !name.includes("carregando") && !name.includes("Nenhum")) {
                        eventsMap.set(name, {
                            platform: "GA4",
                            eventName: name,
@@ -213,14 +223,17 @@ async function runGA4Collection() {
                            status: "Ativo"
                        });
                    }
-               } else if (text.trim().length > 1 && text.trim().length < 100 && !text.includes('\n')) {
-                   // Fallback extremo: se não achou colunas mas a row tem um texto curto (pode ser o próprio nome do evento puro)
-                   eventsMap.set(text.trim(), {
-                       platform: "GA4",
-                       eventName: text.trim(),
-                       eventType: typeStr,
-                       status: "Ativo"
-                   });
+               } else if (text.trim().length > 1) {
+                   // Fallback extremo: se não achou colunas pega a primeira linha do conteúdo condensado da row
+                   let parsedName = text.trim().split('\n')[0].trim();
+                   if (parsedName.length > 1 && parsedName.length < 100 && !parsedName.includes("carregando") && !parsedName.includes("Nenhum")) {
+                       eventsMap.set(parsedName, {
+                           platform: "GA4",
+                           eventName: parsedName,
+                           eventType: typeStr,
+                           status: "Ativo"
+                       });
+                   }
                }
           }
           return Array.from(eventsMap.values());
@@ -232,49 +245,77 @@ async function runGA4Collection() {
         console.log(`[GA4-PLAYWRIGHT] properties encontradas: ${acc.properties.length}`);
         
         for (const prop of acc.properties) {
-            console.log(`[GA4-PLAYWRIGHT] acessando Events Hub para a property ${prop.propertyName}`);
-            // GA4 usa diferentes URLs para eventos dependendo da versão da interface (antiga ou nova)
-            const targetUrls = [
-                `https://analytics.google.com/analytics/web/#/a${acc.accountId}p${prop.propertyId}/admin/events/hub`, // legada
-                `https://analytics.google.com/analytics/web/#/a${acc.accountId}p${prop.propertyId}/admin/events` // moderna
+            console.log(`[GA4-PLAYWRIGHT] acessando Key Events e Recent Events para a property ${prop.propertyName}...`);
+            
+            let isRealAccount = /^\d+$/.test(acc.accountId);
+            let accountPrefix = isRealAccount ? `a${acc.accountId}` : '';
+            
+            const targetUrlsKeyEvents = [
+                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/property/key-events`, // moderna
+                `https://analytics.google.com/analytics/web/#/p${prop.propertyId}/admin/property/key-events`,
+                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/conversions` // antiga
             ];
             
-            let finalPropEvents = [];
-            for (let targetUrl of targetUrls) {
-                console.log(`[GA4-PLAYWRIGHT] Tentando URL: ${targetUrl}`);
-                await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-                
-                // Espera explícita para os dados da tabela popularem, já que GWT/Angular fazem lazy load
-                // Aguardamos até que um ga-event-table-row, mat-row ou a string "Event name" apareçam
+            const targetUrlsRecentEvents = [
+                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/events`, // moderna
+                `https://analytics.google.com/analytics/web/#/p${prop.propertyId}/admin/events`,
+                `https://analytics.google.com/analytics/web/#/${accountPrefix}p${prop.propertyId}/admin/events/hub` // legada
+            ];
+            
+            let eventMap = new Map();
+            
+            // 1. Visitar Key Events
+            for (let targetUrl of targetUrlsKeyEvents) {
+                console.log(`[GA4-PLAYWRIGHT] Tentando URL Key Events: ${targetUrl}`);
                 try {
+                    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
                     await page.waitForFunction(() => {
                         return document.querySelectorAll('mat-row, ga-event-table-row').length > 0 ||
                                document.body.innerText.includes('Nome do evento') ||
-                               document.body.innerText.includes('Event name');
+                               document.body.innerText.includes('Event name') ||
+                               document.body.innerText.includes('Nenhum evento');
                     }, { timeout: 15000 });
                 } catch (e) {
-                    console.log(`[GA4-PLAYWRIGHT] Timeout aguardando tabela carregar em ${targetUrl}`);
+                    console.log(`[GA4-PLAYWRIGHT] Timeout ou vazia aguardando Key Events em ${targetUrl}`);
                 }
                 
-                await page.waitForTimeout(4000); // Mais uma folga 
-                
+                await page.waitForTimeout(3000); 
                 const keyEventsTable = await extractFromCurrentTable("Key event");
-                const allEventsTable = await extractFromCurrentTable("Recent event");
-                
-                const eventMap = new Map();
+                console.log(`[GA4-PLAYWRIGHT] Achados ${keyEventsTable.length} Key Events.`);
                 keyEventsTable.forEach(e => eventMap.set(e.eventName, e));
+                
+                if (keyEventsTable.length > 0) break; // achou os key events aqui, não precisa tentar o próximo link de key events
+            }
+
+            // 2. Visitar Recent Events
+            for (let targetUrl of targetUrlsRecentEvents) {
+                console.log(`[GA4-PLAYWRIGHT] Tentando URL Recent Events: ${targetUrl}`);
+                try {
+                    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+                    await page.waitForFunction(() => {
+                        return document.querySelectorAll('mat-row, ga-event-table-row').length > 0 ||
+                               document.body.innerText.includes('Nome do evento') ||
+                               document.body.innerText.includes('Event name') ||
+                               document.body.innerText.includes('Nenhum evento');
+                    }, { timeout: 15000 });
+                } catch (e) {
+                    console.log(`[GA4-PLAYWRIGHT] Timeout ou vazia aguardando Recent Events em ${targetUrl}`);
+                }
+                
+                await page.waitForTimeout(3000); 
+                const allEventsTable = await extractFromCurrentTable("Recent event");
+                console.log(`[GA4-PLAYWRIGHT] Achados ${allEventsTable.length} Recent Events.`);
                 allEventsTable.forEach(e => {
+                    // Se não existe, adiciona. Se já existe como Key Event, mantém como Key Event!
                     if (!eventMap.has(e.eventName)) {
                         eventMap.set(e.eventName, e);
                     }
                 });
                 
-                finalPropEvents = Array.from(eventMap.values());
-                if (finalPropEvents.length > 0) {
-                     break; // Achou os eventos, não precisa tentar a próxima URL
-                }
+                if (allEventsTable.length > 0) break; // achou os recent events, já pode parar de tentar
             }
             
+            const finalPropEvents = Array.from(eventMap.values());
             prop.events = finalPropEvents;
             
             console.log(`[GA4-PLAYWRIGHT] eventos encontrados na prop ${prop.propertyId}: ${finalPropEvents.length}`);
