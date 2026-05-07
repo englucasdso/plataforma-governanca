@@ -12,10 +12,10 @@ async function runGA4Collection() {
   isCollecting = true;
 
   try {
-    const userDataDir = path.resolve('backend/data/playwright_session');
+    const userDataDir = path.resolve(process.cwd(), 'backend/data/playwright_ga4_session');
     
-    console.log('[GA4-PLAYWRIGHT] usando sessão persistente');
-    console.log('[GA4-PLAYWRIGHT] iniciando modo headless');
+    console.log(`[GA4-PLAYWRIGHT] Usando sessão persistente em: ${userDataDir}`);
+    console.log('[GA4-PLAYWRIGHT] Iniciando modo headless');
     let context = await chromium.launchPersistentContext(userDataDir, {
       headless: true, // Modo headless conforme requisitado
       channel: 'chrome',
@@ -28,8 +28,7 @@ async function runGA4Collection() {
         '--disable-setuid-sandbox', 
         '--disable-web-security',
         '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--headless=new'
+        '--disable-dev-shm-usage'
       ]
     });
 
@@ -37,16 +36,21 @@ async function runGA4Collection() {
     let page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
     let baseUrl = `https://analytics.google.com/analytics/web/`;
-    console.log('[GA4-PLAYWRIGHT] acessando Google Analytics');
+    console.log(`[GA4-PLAYWRIGHT] Acessando Google Analytics: ${baseUrl}`);
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     
     let currentUrl = page.url();
+    console.log(`[GA4-PLAYWRIGHT] URL atual após acesso: ${currentUrl}`);
+    
+    // Tira um screenshot (opcional, ajuda a depurar em background) para ver onde parou
+    await page.screenshot({ path: path.resolve(process.cwd(), 'backend/data/debug_ga4_login.png') }).catch(() => {});
     
     if (currentUrl.includes('accounts.google.com') || currentUrl.includes('ServiceLogin')) {
-       throw new Error("Sessão Google não encontrada ou expirada na sessão persistente. O processo em background não conseguiu autenticar automaticamente.");
+       console.error(`[GA4-PLAYWRIGHT] Erro: Redirecionado para tela de login do Google (${currentUrl}). Acesso silencioso abortado.`);
+       throw new Error(`A sessão persistente do Playwright (pasta: backend/data/playwright_ga4_session) não possui cookies válidos do Google. O acesso silencioso em background requer uma sessão previamente autenticada no mesmo diretório. Você precisa popular essa pasta com uma sessão válida.`);
     }
 
-    console.log('[GA4-PLAYWRIGHT] acessando GA4');
+    console.log('[GA4-PLAYWRIGHT] GA4 acessado com sucesso (login reconhecido pela sessão persistente)');
     await page.waitForTimeout(5000); // Espera o SPA carregar
     
     currentUrl = page.url();
