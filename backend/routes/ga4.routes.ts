@@ -15,6 +15,7 @@ async function runGa4Sync() {
         
         // Validação ADC apenas para checar se o usuário está logado
         await checkStatus();
+        console.log("[GA4-AUTH] ADC OK");
         
         syncJob.step = 2; // Extraindo dados
         const events = await runGA4Collection();
@@ -29,7 +30,7 @@ async function runGa4Sync() {
         syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. Erro: " + errorMsg;
 
         try {
-            const dirPath = path.join(process.cwd(), "data");
+            const dirPath = path.join(process.cwd(), "backend", "data");
             if (!fs.existsSync(dirPath)) {
                 fs.mkdirSync(dirPath, { recursive: true });
             }
@@ -88,7 +89,7 @@ router.get("/ga4/sync/status", (req, res) => {
 });
 
 router.get("/ga4/saved", (req, res) => {
-   const filepath = path.join(process.cwd(), "data", "ga4-events.json");
+   const filepath = path.join(process.cwd(), "backend", "data", "ga4-events.json");
    if (fs.existsSync(filepath)) {
       res.json(JSON.parse(fs.readFileSync(filepath, "utf8")));
    } else {

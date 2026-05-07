@@ -12,11 +12,12 @@ async function runGA4Collection() {
   isCollecting = true;
 
   try {
-    const userDataDir = path.resolve('data/playwright_ga4_session');
+    const userDataDir = path.resolve('backend/data/playwright_ga4_session');
     
     console.log('[GA4-PLAYWRIGHT] iniciando navegador com sessão persistente');
+    console.log('[GA4-PLAYWRIGHT] iniciando modo headless');
     let context = await chromium.launchPersistentContext(userDataDir, {
-      headless: false, // Usando headful para lidar com login se necessário e ajudar na visualização
+      headless: true, // Modo headless conforme requisitado
       channel: 'chrome',
       ignoreHTTPSErrors: true,
       viewport: null,
@@ -58,69 +59,86 @@ async function runGA4Collection() {
     console.log('[GA4-PLAYWRIGHT] listando accounts');
     
     // Tenta extrair contas e propriedades da tela (se possível)
-    // Uma abordagem universal fallback: vamos capturar a conta/prop atual se o picker falhar,
-    // mas tentamos varrer o DOM.
     let hierarchy = await page.evaluate(async () => {
         const sleep = ms => new Promise(r => setTimeout(r, ms));
-        
         let result = [];
         
-        // fallback: url atual
-        const match = window.location.hash.match(/a(\d+)p(\d+)/);
-        if (match) {
-            let accId = match[1];
-            let propId = match[2];
-            // Tenta pegar o nome da interface se possivel
-            let nameLabels = Array.from(document.querySelectorAll('span, div')).filter(el => {
-                let text = (el.innerText || "").trim();
-                return text.length > 2 && text.length < 50;
-            });
-            
-            result.push({
-                accountId: accId,
-                accountName: `Account ${accId}`,
-                properties: [{
-                    propertyId: propId,
-                    propertyName: `Property ${propId}`,
-                    events: []
-                }]
+        // Tenta abrir o picker global de account/property na URL ou no header
+        let pickerBtn = Array.from(document.querySelectorAll('*')).find(el => {
+            const label = (el.getAttribute('aria-label') || "").toLowerCase();
+            return label.includes('alternador de contas') || label.includes('account switcher') || label.includes('conta e propriedade') || label.includes('account and property');
+        });
+        
+        if (!pickerBtn) {
+            pickerBtn = Array.from(document.querySelectorAll('.asset-selector-button, [data-test-id="asset-selector-button"], button')).find(el => {
+                const text = (el.innerText || "").toLowerCase();
+                return text.includes('analytics') && (text.includes('conta') || text.includes('account'));
             });
         }
         
-        // Tenta abrir o picker para encontrar mais
-        let pickerBtn = Array.from(document.querySelectorAll('button, div[role="button"]')).find(el => 
-            (el.getAttribute('aria-label') || "").toLowerCase().includes("conta") || 
-            (el.getAttribute('aria-label') || "").toLowerCase().includes("account") ||
-            (el.innerText || "").includes("Propriedades") ||
-            (el.innerText || "").includes("Properties")
-        );
-        
         if (pickerBtn) {
             pickerBtn.click();
-            await sleep(2000);
+            await sleep(3000); // Aguarda painel abrir
             
-            let links = Array.from(document.querySelectorAll('a[href*="/#/a"]'));
-            for (let link of links) {
-                let href = link.getAttribute('href');
-                let m = href.match(/a(\d+)p(\d+)/);
-                if (m) {
-                    let aId = m[1];
-                    let pId = m[2];
-                    let text = link.innerText.trim();
-                    
-                    let acc = result.find(a => a.accountId === aId);
-                    if (!acc) {
-                        acc = { accountId: aId, accountName: `Account ${aId}`, properties: [] };
-                        result.push(acc);
-                    }
-                    if (!acc.properties.find(p => p.propertyId === pId)) {
-                        acc.properties.push({
-                            propertyId: pId,
-                            propertyName: text || `Property ${pId}`,
-                            events: []
-                        });
+            // Percorrer a lista lateral de accounts
+            // GWT/Angular no GA4 usa roles e lists
+            let accountTabs = Array.from(document.querySelectorAll('mat-row, .account-row, [role="tab"], [role="menuitem"], div[class*="account-"]'));
+            
+            // Mas de forma mais genérica, procuramos links que levam a propriedades
+            let propLinks = Array.from(document.querySelectorAll('a[href*="/#/a"]'));
+            
+            // Se encontrar links diretos no painel
+            if (propLinks.length > 0) {
+                for (let link of propLinks) {
+                    let href = link.getAttribute('href');
+                    let m = href.match(/a(\d+)p(\d+)/);
+                    if (m) {
+                        let aId = m[1];
+                        let pId = m[2];
+                        let text = link.innerText.trim().split('\n')[0] || `Property ${pId}`;
+                        
+                        // Busca o nome da account (à esquerda geralmente)
+                        let accName = `Account ${aId}`;
+                        let accElem = Array.from(document.querySelectorAll('.account-name, [class*="accountName"]')).find(el => el.closest(`[data-id="${aId}"]`) || true);
+                        
+                        let acc = result.find(a => a.accountId === aId);
+                        if (!acc) {
+                            acc = { accountId: aId, accountName: accName, properties: [] };
+                            result.push(acc);
+                        }
+                        if (!acc.properties.find(p => p.propertyId === pId)) {
+                            acc.properties.push({
+                                propertyId: pId,
+                                propertyName: text,
+                                events: []
+                            });
+                        }
                     }
                 }
+            }
+        }
+        
+        // Fallback: se o picker não funcionou, tenta extrair da URL atual
+        if (result.length === 0) {
+            const match = window.location.href.match(/a(\d+)p(\d+)/);
+            if (match) {
+                let accId = match[1];
+                let propId = match[2];
+                let nameLabels = Array.from(document.querySelectorAll('span, div')).filter(el => {
+                    let text = (el.innerText || "").trim();
+                    return text.length > 2 && text.length < 50;
+                });
+                let propName = nameLabels[0]?.innerText || `Property ${propId}`;
+                
+                result.push({
+                    accountId: accId,
+                    accountName: `Account ${accId}`,
+                    properties: [{
+                        propertyId: propId,
+                        propertyName: propName,
+                        events: []
+                    }]
+                });
             }
         }
         
@@ -161,11 +179,11 @@ async function runGA4Collection() {
     };
 
     for (const acc of hierarchy) {
-        console.log(`[GA4-PLAYWRIGHT] listando properties da account: ${acc.accountName}`);
-        console.log(`[GA4-PLAYWRIGHT] properties encontradas: ${acc.properties.length}`);
+        console.log(`[GA4-PLAYWRIGHT] account encontrada: ${acc.accountName}`);
         
         for (const prop of acc.properties) {
-            console.log(`[GA4-PLAYWRIGHT] acessando eventos da property: ${prop.propertyName}`);
+            console.log(`[GA4-PLAYWRIGHT] property encontrada: ${prop.propertyName}`);
+            console.log(`[GA4-PLAYWRIGHT] acessando Events Hub`);
             const targetUrl = `https://analytics.google.com/analytics/web/#/a${acc.accountId}p${prop.propertyId}/admin/events/hub`;
             
             await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -184,17 +202,13 @@ async function runGA4Collection() {
             });
             
             const finalPropEvents = Array.from(eventMap.values());
-            if (finalPropEvents.length === 0) {
-               console.log(`[GA4-PLAYWRIGHT] nenhum evento encontrado, tentando usar eventos padrão se tela for vazia...`);
-            } else {
-               prop.events = finalPropEvents;
-            }
+            prop.events = finalPropEvents;
             
             console.log(`[GA4-PLAYWRIGHT] eventos encontrados: ${finalPropEvents.length}`);
         }
     }
 
-    const dataDir = path.resolve('data');
+    const dataDir = path.resolve('backend/data');
     await fs.mkdir(dataDir, { recursive: true });
     
     const finalData = {
@@ -203,6 +217,7 @@ async function runGA4Collection() {
     };
     
     const filePath = path.resolve(dataDir, 'ga4-events.json');
+    console.log(`[GA4-SYNC] salvando JSON local`);
     console.log(`[GA4-SYNC] salvando backend/data/ga4-events.json`);
     await fs.writeFile(filePath, JSON.stringify(finalData, null, 2), 'utf8');
     console.log(`[GA4-SYNC] sincronização finalizada`);

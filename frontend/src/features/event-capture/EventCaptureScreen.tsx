@@ -277,9 +277,9 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 <div className="flex gap-3">
                     <button 
                         onClick={() => setShowAuthModal(true)}
-                        className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-full font-bold text-sm tracking-wide hover:bg-purple-700 transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 whitespace-nowrap"
+                        className="flex items-center gap-2 px-6 py-3 bg-bradesco-red text-white rounded-full font-bold text-sm tracking-wide hover:bg-black transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 whitespace-nowrap"
                     >
-                        Buscar eventos GA4
+                        Sincronizar GA4
                     </button>
                 </div>
             )}
@@ -419,6 +419,13 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                               <option key={prop.propertyId} value={prop.propertyId}>{prop.propertyName || prop.propertyId}</option>
                           ))}
                       </select>
+
+                      <button 
+                          onClick={loadSavedEvents}
+                          className="flex items-center gap-2 px-6 py-2 bg-gray-900 text-white rounded-lg font-bold text-sm tracking-wide hover:bg-gray-800 transition-all shadow-sm whitespace-nowrap ml-4"
+                      >
+                          <Search className="w-4 h-4" /> Buscar eventos
+                      </button>
                   </div>
               )}
             </div>
