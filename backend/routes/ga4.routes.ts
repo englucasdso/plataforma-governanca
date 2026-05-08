@@ -1,31 +1,25 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const router = express.Router();
 
 let syncJob = { active: false, step: 0, status: "idle", errorMsg: "" };
 const SA_FILE_PATH = path.join(process.cwd(), "backend", "secrets", "ga4-service-account.json");
 const DATA_FILE_PATH = path.join(process.cwd(), "backend", "data", "ga4-events.json");
 const PYTHON_SCRIPT_PATH = path.join(process.cwd(), "backend", "scripts", "sync_ga4.py");
+const PYTHON_EXE = "C:\\Users\\i462913\\AppData\\Local\\Programs\\Python\\Python313\\python.exe";
 
 async function executeSync() {
     try {
         console.log("[GA4-SYNC] Executando Python");
         syncJob.step = 1; // Start
         
-        // Ensure requirements are installed
-        try {
-            await execAsync('python -m pip install -r backend/requirements.txt', { cwd: process.cwd() });
-        } catch (e: any) {
-            console.warn("[GA4-SYNC] Warning during pip install:", e.message);
-        }
-
         syncJob.step = 2; // Extraindo dados
-        const { stdout, stderr } = await execAsync(`python ${PYTHON_SCRIPT_PATH}`, { cwd: process.cwd() });
+        const { stdout, stderr } = await execFileAsync(PYTHON_EXE, [PYTHON_SCRIPT_PATH], { cwd: process.cwd() });
         
         if (stdout) console.log(stdout);
         if (stderr) console.error(stderr);
