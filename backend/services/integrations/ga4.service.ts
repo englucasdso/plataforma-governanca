@@ -46,8 +46,8 @@ export async function runGA4Sync() {
   }
 
   // Clients
-  const adminClient = new AnalyticsAdminServiceClient({ auth });
-  const dataClient = new BetaAnalyticsDataClient({ auth });
+  const adminClient = new AnalyticsAdminServiceClient({ auth, fallback: true });
+  const dataClient = new BetaAnalyticsDataClient({ auth, fallback: true });
 
   console.log('[GA4-SYNC] Fetching accounts list...');
   const [accounts] = await adminClient.listAccounts();
