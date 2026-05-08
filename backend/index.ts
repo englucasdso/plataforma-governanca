@@ -6,6 +6,10 @@
  * visuais do frontend para o navegador.
  */
 
+import 'dotenv/config';
+import { bootstrap } from 'global-agent';
+bootstrap();
+
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
