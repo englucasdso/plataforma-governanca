@@ -36,7 +36,15 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
 
   useEffect(() => {
     fetch("/api/ga4/status")
-      .then(res => res.json())
+      .then(async res => {
+          const text = await res.text();
+          try {
+              return JSON.parse(text);
+          } catch (e) {
+              console.error("Invalid JSON from /api/ga4/status:", text.substring(0, 200));
+              throw e;
+          }
+      })
       .then(data => setGa4Status(data))
       .catch(err => console.error("Error fetching GA4 status", err));
   }, []);
@@ -44,7 +52,15 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   const loadSavedEvents = () => {
     setLoadingInitial(true);
     fetch("/api/ga4/saved")
-        .then(res => res.json())
+        .then(async res => {
+            const text = await res.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error("Invalid JSON from /api/ga4/saved:", text.substring(0, 200));
+                throw e;
+            }
+        })
         .then(data => {
             if (data && data.accounts && Array.isArray(data.accounts)) {
                 setGa4Events(data.accounts); // we'll store the hierarchy here
@@ -75,7 +91,15 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
       if (syncJob.active && syncJob.status === "running") {
           interval = setInterval(() => {
               fetch("/api/ga4/sync/status")
-                  .then(res => res.json())
+                  .then(async res => {
+                      const text = await res.text();
+                      try {
+                          return JSON.parse(text);
+                      } catch (e) {
+                          console.error("Invalid JSON from sync/status:", text.substring(0, 200));
+                          throw e;
+                      }
+                  })
                   .then(data => {
                       setSyncJob(data);
                       if (data.status !== "running") {
