@@ -19,20 +19,16 @@ export async function checkStatus() {
     return {
       connected: false,
       authType: null,
-      message: "Service Account não configurada. Defina a variável de ambiente GOOGLE_APPLICATION_CREDENTIALS apontando para o JSON."
+      message: "Service Account não configurada ou arquivo backend/secrets/ga4-service-account.json não encontrado."
     };
   }
 }
 
 function getAuth() {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    return new GoogleAuth({
-      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-      scopes: SCOPES,
-    });
-  }
-
-  throw new Error("Nenhuma Service Account configurada. Use GOOGLE_APPLICATION_CREDENTIALS.");
+  return new GoogleAuth({
+    keyFile: 'backend/secrets/ga4-service-account.json',
+    scopes: SCOPES,
+  });
 }
 
 export async function runGA4Sync() {

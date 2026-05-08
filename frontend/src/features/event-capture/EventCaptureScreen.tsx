@@ -3,13 +3,7 @@ import { Target, ArrowRight, Activity, Search, Filter, CheckCircle2, AlertTriang
 import { motion, AnimatePresence } from 'motion/react';
 import { TypewriterText } from '../../components/TypewriterText';
 
-const MOCK_EVENTS = [
-  { id: 3, name: 'Purchase', platform: 'Meta', status: 'ativo', lastOccurrence: 'Há 12 minutos' },
-  { id: 4, name: 'ViewContent', platform: 'Meta', status: 'atenção', lastOccurrence: 'Há 4 horas' },
-  { id: 5, name: 'install', platform: 'AppsFlyer', status: 'ativo', lastOccurrence: 'Há 1 hora' },
-  { id: 6, name: 'CompleteRegistration', platform: 'TikTok', status: 'inativo', lastOccurrence: 'Há 3 dias' },
-  { id: 8, name: 'StartCheckout', platform: 'TikTok', status: 'atenção', lastOccurrence: 'Há 8 horas' },
-];
+const MOCK_EVENTS: any[] = [];
 
 const PLATFORMS = [
   { name: 'GTM', logoUrl: 'https://cdn.simpleicons.org/googletagmanager/246FDB', events: 0, status: 'ativo', color: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
