@@ -14,31 +14,32 @@ const PYTHON_SCRIPT_PATH = path.join(process.cwd(), "backend", "scripts", "sync_
 
 async function executeSync() {
     try {
-        console.log("[GA4-SYNC] iniciando sincronização via Python");
+        console.log("[GA4-SYNC] Executando Python");
         syncJob.step = 1; // Start
         
         // Ensure requirements are installed
         try {
-            await execAsync('pip3 install -r backend/requirements.txt', { cwd: process.cwd() });
+            await execAsync('python -m pip install -r backend/requirements.txt', { cwd: process.cwd() });
         } catch (e: any) {
             console.warn("[GA4-SYNC] Warning during pip install:", e.message);
         }
 
         syncJob.step = 2; // Extraindo dados
-        const { stdout, stderr } = await execAsync(`python3 ${PYTHON_SCRIPT_PATH}`, { cwd: process.cwd() });
+        const { stdout, stderr } = await execAsync(`python ${PYTHON_SCRIPT_PATH}`, { cwd: process.cwd() });
         
         if (stdout) console.log(stdout);
         if (stderr) console.error(stderr);
         
         syncJob.step = 3; // Sucesso
         syncJob.status = "success";
+        console.log("[GA4-SYNC] Sincronização concluída");
         
     } catch (error: any) {
         syncJob.status = "error";
         const errorMsg = error.message || String(error);
         
         syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. Erro: " + errorMsg;
-        console.error("Erro na sincronizacao: ", errorMsg);
+        console.error("[GA4-SYNC] Erro na sincronização: ", errorMsg);
         throw error;
     } finally {
         setTimeout(() => {

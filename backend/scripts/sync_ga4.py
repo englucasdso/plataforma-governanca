@@ -6,8 +6,9 @@ from google.analytics.admin import AnalyticsAdminServiceClient
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import DateRange, Dimension, Metric, RunReportRequest
 
-CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), '..', 'secrets', 'ga4-service-account.json')
-DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'ga4-events.json')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CREDENTIALS_PATH = os.path.join(BASE_DIR, 'secrets', 'ga4-service-account.json')
+DATA_PATH = os.path.join(BASE_DIR, 'data', 'ga4-events.json')
 SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
 
 def main():

@@ -9,6 +9,7 @@ coverage/
 
 # Credentials
 backend/secrets/
+backend/data/ga4-events.json
 *.service-account.json
 ga4-service-account.json
 *.pem
