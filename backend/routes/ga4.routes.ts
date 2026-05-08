@@ -1,32 +1,44 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import { checkStatus, runGA4Sync } from "../services/integrations/ga4.service";
+import { exec } from "child_process";
+import { promisify } from "util";
 
+const execAsync = promisify(exec);
 const router = express.Router();
 
 let syncJob = { active: false, step: 0, status: "idle", errorMsg: "" };
+const SA_FILE_PATH = path.join(process.cwd(), "backend", "secrets", "ga4-service-account.json");
+const DATA_FILE_PATH = path.join(process.cwd(), "backend", "data", "ga4-events.json");
+const PYTHON_SCRIPT_PATH = path.join(process.cwd(), "backend", "scripts", "sync_ga4.py");
 
 async function executeSync() {
     try {
-        console.log("[GA4-SYNC] iniciando sincronização");
+        console.log("[GA4-SYNC] iniciando sincronização via Python");
         syncJob.step = 1; // Start
         
-        await checkStatus();
-        
+        // Ensure requirements are installed
+        try {
+            await execAsync('pip3 install -r backend/requirements.txt', { cwd: process.cwd() });
+        } catch (e: any) {
+            console.warn("[GA4-SYNC] Warning during pip install:", e.message);
+        }
+
         syncJob.step = 2; // Extraindo dados
-        const result = await runGA4Sync();
+        const { stdout, stderr } = await execAsync(`python3 ${PYTHON_SCRIPT_PATH}`, { cwd: process.cwd() });
+        
+        if (stdout) console.log(stdout);
+        if (stderr) console.error(stderr);
         
         syncJob.step = 3; // Sucesso
         syncJob.status = "success";
         
-        return result;
     } catch (error: any) {
         syncJob.status = "error";
-        const errorMsg = error.message || "";
+        const errorMsg = error.message || String(error);
         
         syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. Erro: " + errorMsg;
-        console.error("Erro na sincronizacao: ", error);
+        console.error("Erro na sincronizacao: ", errorMsg);
         throw error;
     } finally {
         setTimeout(() => {
@@ -40,8 +52,14 @@ async function executeSync() {
 
 router.get("/ga4/status", async (req, res) => {
   try {
-    const status = await checkStatus();
-    res.json(status);
+    const saExists = fs.existsSync(SA_FILE_PATH);
+    res.json({
+        connected: saExists,
+        authType: saExists ? "service_account" : null,
+        message: saExists 
+            ? "Service Account configurada."
+            : "Service Account não encontrada em backend/secrets/ga4-service-account.json."
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -113,7 +131,13 @@ router.get("/ga4/events", (req, res) => {
             // append event with context
             if (p.events) {
                 p.events.forEach((e: any) => {
-                    allEvents.push({ ...e, accountId: a.accountId, propertyId: p.propertyId });
+                    allEvents.push({ 
+                        ...e, 
+                        accountId: a.accountId, 
+                        accountName: a.accountName,
+                        propertyId: p.propertyId,
+                        propertyName: p.propertyName
+                    });
                 });
             }
         });

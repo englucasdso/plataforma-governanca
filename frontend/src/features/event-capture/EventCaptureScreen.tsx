@@ -23,7 +23,6 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   
   const [ga4Events, setGa4Events] = useState<any[]>([]);
   
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [syncJob, setSyncJob] = useState({ active: false, step: 0, status: 'idle', errorMsg: '' });
   const [hasScrapedData, setHasScrapedData] = useState(false);
   const [loadingInitial, setLoadingInitial] = useState(false);
@@ -45,13 +44,13 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
 
   const loadSavedEvents = () => {
     setLoadingInitial(true);
-    fetch("/api/ga4/saved")
+    fetch("/api/ga4/events")
         .then(async res => {
             const text = await res.text();
             try {
                 return JSON.parse(text);
             } catch (e) {
-                console.error("Invalid JSON from /api/ga4/saved:", text.substring(0, 200));
+                console.error("Invalid JSON from /api/ga4/events:", text.substring(0, 200));
                 throw e;
             }
         })
@@ -146,7 +145,6 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   }
 
   const handleStartSync = async () => {
-      setShowAuthModal(false);
       try {
           const res = await fetch("/api/ga4/sync", { 
               method: "POST"
@@ -181,51 +179,6 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   return (
     <section className="flex flex-col flex-1 w-full max-w-5xl mx-auto pt-8 pb-12 px-6">
       
-      <AnimatePresence>
-        {showAuthModal && (
-            <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-md"
-            >
-                <div className="bg-white rounded-[40px] p-12 max-w-md w-full shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-bradesco-gradient" />
-                    <div className="flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center mb-6 text-bradesco-red shadow-sm">
-                            <KeyRound className="w-8 h-8" />
-                        </div>
-                        <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
-                            Atualização GA4
-                        </h2>
-                        <p className="text-gray-500 font-medium mb-8 text-sm">
-                            Sincronize os dados das suas contas e propriedades de forma automática.
-                        </p>
-                        <div className="w-full bg-gray-50 rounded-2xl p-4 mb-8 text-left border border-gray-100 flex items-start gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-bradesco-red shrink-0 mt-0.5" />
-                            <p className="text-sm font-medium text-gray-600 leading-tight">
-                                O sistema coletará eventos passando por todas as contas e propriedades no GA4 em background.
-                            </p>
-                        </div>
-                        
-                        <div className="flex flex-col gap-3 w-full">
-                            <button 
-                                onClick={handleStartSync}
-                                className="w-full py-4 bg-bradesco-red text-white rounded-[20px] font-bold text-sm tracking-wide hover:bg-black transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5"
-                            >
-                                Iniciar Sincronização
-                            </button>
-                            <button 
-                                onClick={() => setShowAuthModal(false)}
-                                className="w-full py-4 text-gray-500 font-bold hover:text-gray-900 transition-colors text-sm"
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-        )}
-      </AnimatePresence>
-
       <AnimatePresence>
         {syncJob.active && (
             <motion.div 
@@ -287,7 +240,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
             {selectedPlatform === "GA4" && (
                 <div className="flex gap-3">
                     <button 
-                        onClick={() => setShowAuthModal(true)}
+                        onClick={() => handleStartSync()}
                         className="flex items-center gap-2 px-6 py-3 bg-bradesco-red text-white rounded-full font-bold text-sm tracking-wide hover:bg-black transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 whitespace-nowrap"
                     >
                         Sincronizar GA4
