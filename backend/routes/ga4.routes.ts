@@ -1,53 +1,40 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import { checkStatus } from "../services/integrations/ga4.service";
-import { runGA4Collection, abortGA4Collection } from "../ga4Client.js";
+import { checkStatus, runGA4Sync } from "../services/integrations/ga4.service";
 
 const router = express.Router();
 
 let syncJob = { active: false, step: 0, status: "idle", errorMsg: "" };
 
-async function runGa4Sync() {
+async function executeSync() {
     try {
         console.log("[GA4-SYNC] iniciando sincronização");
-        syncJob.step = 1; // Playwright / Setup local
+        syncJob.step = 1; // Start
         
-        // Validação ADC apenas para checar se o usuário está logado
         await checkStatus();
-        console.log("[GA4-AUTH] ADC OK");
         
         syncJob.step = 2; // Extraindo dados
-        const events = await runGA4Collection();
+        const result = await runGA4Sync();
         
         syncJob.step = 3; // Sucesso
         syncJob.status = "success";
         
+        return result;
     } catch (error: any) {
         syncJob.status = "error";
         const errorMsg = error.message || "";
         
         syncJob.errorMsg = "Não foi possível concluir a sincronização com o GA4. Erro: " + errorMsg;
-
-        try {
-            const dirPath = path.join(process.cwd(), "backend", "data");
-            if (!fs.existsSync(dirPath)) {
-                fs.mkdirSync(dirPath, { recursive: true });
-            }
-            const logPath = path.join(dirPath, "ga4-update-log.json");
-            const logEntry = {
-                timestamp: new Date().toISOString(),
-                step: syncJob.step,
-                originalMessage: errorMsg,
-                type: "playwright/ui",
-                status: "failed"
-            };
-            const logs = fs.existsSync(logPath) ? JSON.parse(fs.readFileSync(logPath, "utf8")) : [];
-            logs.push(logEntry);
-            fs.writeFileSync(logPath, JSON.stringify(logs, null, 2));
-        } catch (e) {
-            console.error("Erro ao salvar log de ga4", e);
-        }
+        console.error("Erro na sincronizacao: ", error);
+        throw error;
+    } finally {
+        setTimeout(() => {
+           // Reset after a while so we can run again
+           if (syncJob.status === "success" || syncJob.status === "error") {
+               syncJob.active = false;
+           }
+        }, 10000);
     }
 }
 
@@ -68,20 +55,10 @@ router.post("/ga4/sync", (req, res) => {
    
    syncJob = { active: true, step: 0, status: "running", errorMsg: "" };
    
-   runGa4Sync().catch(console.error);
+   // Run in background
+   executeSync().catch(console.error);
 
    res.json({ message: "Started" });
-});
-
-router.post("/ga4/sync/cancel", async (req, res) => {
-   try {
-       await abortGA4Collection();
-       syncJob.status = "error";
-       syncJob.errorMsg = "Sincronização cancelada pelo usuário.";
-       res.json({ message: "Cancelled" });
-   } catch (e: any) {
-       res.status(500).json({ error: e.message });
-   }
 });
 
 router.get("/ga4/sync/status", (req, res) => {
@@ -95,6 +72,53 @@ router.get("/ga4/saved", (req, res) => {
    } else {
       res.json([]);
    }
+});
+
+function getSavedData() {
+    const filepath = path.join(process.cwd(), "backend", "data", "ga4-events.json");
+    if (fs.existsSync(filepath)) {
+        return JSON.parse(fs.readFileSync(filepath, "utf8"));
+    }
+    return { accounts: [] };
+}
+
+router.get("/ga4/accounts", (req, res) => {
+    const data = getSavedData();
+    res.json(data.accounts.map((a: any) => ({ accountId: a.accountId, accountName: a.accountName })));
+});
+
+router.get("/ga4/properties", (req, res) => {
+    const data = getSavedData();
+    const accountId = req.query.accountId;
+    if (!accountId) {
+        // Return all properties across accounts if no filter
+        const allProps = data.accounts.flatMap((a: any) => a.properties);
+        res.json(allProps);
+    } else {
+        const acc = data.accounts.find((a: any) => a.accountId === accountId);
+        res.json(acc ? acc.properties : []);
+    }
+});
+
+router.get("/ga4/events", (req, res) => {
+    const data = getSavedData();
+    const accountId = req.query.accountId;
+    const propertyId = req.query.propertyId;
+    
+    let allEvents: any[] = [];
+    data.accounts.forEach((a: any) => {
+        if (accountId && a.accountId !== accountId) return;
+        a.properties.forEach((p: any) => {
+            if (propertyId && p.propertyId !== propertyId) return;
+            // append event with context
+            if (p.events) {
+                p.events.forEach((e: any) => {
+                    allEvents.push({ ...e, accountId: a.accountId, propertyId: p.propertyId });
+                });
+            }
+        });
+    });
+    res.json(allEvents);
 });
 
 export default router;

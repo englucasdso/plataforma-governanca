@@ -8,7 +8,6 @@
   },
   "scripts": {
     "dev": "tsx backend/index.ts",
-    "setup:ga4": "node backend/setup-ga4-auth.js",
     "build": "vite build",
     "start": "tsx backend/index.ts",
     "preview": "vite preview",

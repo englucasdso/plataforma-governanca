@@ -29,7 +29,7 @@ async function startServer() {
   // definidas dentro do arquivo searchRoutes.ts
   app.use("/api", searchRoutes);
   app.use("/api/users", usersRoutes);
-  app.use("/api/events", ga4Routes);
+  app.use("/api", ga4Routes);
 
 
   // Integração e Servimento do Frontend (Visão do Usuário)

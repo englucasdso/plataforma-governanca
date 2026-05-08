@@ -35,7 +35,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   const [loadingInitial, setLoadingInitial] = useState(false);
 
   useEffect(() => {
-    fetch("/api/events/ga4/status")
+    fetch("/api/ga4/status")
       .then(res => res.json())
       .then(data => setGa4Status(data))
       .catch(err => console.error("Error fetching GA4 status", err));
@@ -43,7 +43,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
 
   const loadSavedEvents = () => {
     setLoadingInitial(true);
-    fetch("/api/events/ga4/saved")
+    fetch("/api/ga4/saved")
         .then(res => res.json())
         .then(data => {
             if (data && data.accounts && Array.isArray(data.accounts)) {
@@ -74,7 +74,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
       let interval: any;
       if (syncJob.active && syncJob.status === "running") {
           interval = setInterval(() => {
-              fetch("/api/events/ga4/sync/status")
+              fetch("/api/ga4/sync/status")
                   .then(res => res.json())
                   .then(data => {
                       setSyncJob(data);
@@ -130,7 +130,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
   const handleStartSync = async () => {
       setShowAuthModal(false);
       try {
-          const res = await fetch("/api/events/ga4/sync", { 
+          const res = await fetch("/api/ga4/sync", { 
               method: "POST"
           });
           if (res.ok) {
@@ -237,7 +237,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                     <span className="text-xs font-medium text-gray-500 mt-0.5">
                       {syncJob.status === "error" 
                         ? "Erro no processo"
-                        : ["Preparando...", "Iniciando navegador Playwright...", "Extraindo dados do Google Analytics...", "Salvando eventos localmente...", "Sincronização concluída!"][syncJob.step]}
+                        : ["Preparando...", "Autenticando via Service Account...", "Buscando accounts e properties via API...", "Salvando eventos localmente...", "Sincronização concluída!"][syncJob.step]}
                     </span>
                   </div>
                 </div>
@@ -245,13 +245,6 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                   <button onClick={() => {
                         setSyncJob(s => ({ ...s, active: false }));
                   }} className="text-gray-400 hover:text-gray-600 ml-2 bg-gray-100/50 hover:bg-gray-100 p-1.5 rounded-full transition-colors">
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-                {syncJob.status === 'running' && (
-                  <button onClick={() => {
-                        fetch('/api/events/ga4/sync/cancel', { method: 'POST' }).catch(console.error);
-                  }} className="text-gray-400 hover:text-red-600 ml-2 bg-gray-100/50 hover:bg-red-50 p-1.5 rounded-full transition-colors" title="Cancelar sincronização">
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -308,7 +301,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                  }
               }}
               className={`p-5 rounded-[24px] border ${ga4Status?.connected ? 'border-gray-100 cursor-pointer hover:border-gray-300 hover:shadow-md' : 'border-red-100 cursor-not-allowed opacity-70'} bg-white transition-all text-left flex flex-col items-start gap-3 relative overflow-hidden group min-w-[200px] max-w-[300px]`}
-              title={ga4Status?.connected ? "Conectado via Google Cloud SDK / ADC" : "Não configurado"}
+              title={ga4Status?.connected ? "Conectado via Service Account" : "Não configurado"}
           >
               <div className="flex flex-col gap-3 w-full">
                   <div className="flex items-center gap-3">
@@ -323,7 +316,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                         {ga4Status?.connected ? (
                             <>
                             <CheckCircle2 className="w-3 h-3 text-green-500" />
-                            <span className="text-[10px] text-gray-400 capitalize whitespace-nowrap">Conectado (ADC)</span>
+                            <span className="text-[10px] text-gray-400 capitalize whitespace-nowrap">Conectado (Service Account)</span>
                             </>
                         ) : (
                             <>
@@ -336,7 +329,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                   </div>
                   {!ga4Status?.connected && (
                       <p className="text-[10px] font-medium text-red-600 mt-2 leading-tight">
-                         Execute <code className="bg-red-50 px-1 py-0.5 rounded">gcloud auth application-default login</code> no terminal e reinicie o servidor.
+                         Configure a Service Account no .env ou via variável de ambiente.
                       </p>
                   )}
               </div>
@@ -434,15 +427,16 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 <tr className="border-b border-gray-50 bg-gray-50/50">
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Nome do Evento</th>
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Plataforma</th>
-                  {selectedPlatform === "GA4" && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Tipo</th>}
+                  {selectedPlatform === "GA4" && (
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Tipo</th>
+                  )}
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
-                  {selectedPlatform !== "GA4" && <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Última Ocorrência</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loadingInitial ? (
                   <tr>
-                    <td colSpan={selectedPlatform === "GA4" ? 4 : 4} className="px-8 py-10 text-center text-gray-500 flex flex-col items-center">
+                    <td colSpan={selectedPlatform === "GA4" ? 4 : 3} className="px-8 py-10 text-center text-gray-500 flex flex-col items-center">
                         <Loader2 className="w-8 h-8 text-purple-600 animate-spin mb-3" />
                         <p className="font-semibold text-gray-900">Carregando dados salvos...</p>
                     </td>
@@ -475,13 +469,6 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                         </span>
                       </div>
                     </td>
-                    {selectedPlatform !== "GA4" && (
-                        <td className="px-8 py-5">
-                          <span className="text-sm font-medium text-gray-500">
-                             {evt.lastOccurrence}
-                          </span>
-                        </td>
-                    )}
                   </tr>
                 ))}
                 {!loadingInitial && filteredEvents.length === 0 && (

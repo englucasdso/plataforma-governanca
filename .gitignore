@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Credentials
+backend/secrets/
+*.service-account.json
+ga4-service-account.json
+*.pem
+*.key
