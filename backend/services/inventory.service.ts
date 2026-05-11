@@ -94,15 +94,16 @@ export function calculateInsights(results: Artifact[]) {
 
   // Calculamos a saúde técnica da base identificando os tipos num relance
   const counts = {
-    ga4: results.filter(item => normalize(item.tipo_mapa) === "ga4").length,
-    ga3: results.filter(item => normalize(item.tipo_mapa) === "ga3").length,
+    ga4: results.filter(item => normalize(item.tipo_mapa) === "ga4 atual").length,
+    ga4Legado: results.filter(item => normalize(item.tipo_mapa) === "ga4 legado").length,
+    ga3: results.filter(item => normalize(item.tipo_mapa) === "universal analytics").length,
     mapas: results.filter(item => {
       const type = normalize(item.tipo_mapa);
-      return type === "ga4" || type === "ga3";
+      return type === "ga4 atual" || type === "ga4 legado" || type === "universal analytics";
     }).length,
     documentos: results.filter(item => {
       const type = normalize(item.tipo_mapa);
-      return type !== "ga4" && type !== "ga3";
+      return type === "doc" || (type !== "ga4 atual" && type !== "ga4 legado" && type !== "universal analytics");
     }).length,
   };
 
@@ -128,7 +129,7 @@ export function calculateInsights(results: Artifact[]) {
   // Deteção de Problemas (Orfãos, defasados e mal-estruturados)
   const semResponsavel = results.filter(i => !i.responsavel || i.responsavel === "-").length;
   const semSubproduto = results.filter(i => !i.subproduto || i.subproduto === "-").length;
-  const foraPadraoGA4 = results.filter(i => normalize(i.tipo_mapa) === "ga3").length;
+  const foraPadraoGA4 = results.filter(i => normalize(i.tipo_mapa) === "universal analytics" || normalize(i.tipo_mapa) === "ga4 legado").length;
   
   const desatualizados = results.filter(item => {
     const data = new Date(item.ultima_atualizacao);
@@ -163,17 +164,17 @@ export function calculateInsights(results: Artifact[]) {
   if (nivelRisco === 'alto') {
     diagnosticoStr = "Status: Crítico. Comprometimento grave na gestão devido a artefatos sem dono ou com formatos legados.";
   } else if (nivelRisco === 'medio') {
-    diagnosticoStr = "Status: Alerta. Inconsistências parciais de governança e migração incompleta para GA4.";
+    diagnosticoStr = "Status: Alerta. Inconsistências parciais de governança e migração incompleta para o novo GA4.";
   } else if (foraPadraoGA4 > 0) {
-    diagnosticoStr = "Status: Transição para GA4 ainda incompleta.";
+    diagnosticoStr = "Status: Transição para o novo GA4 ainda incompleta.";
   }
 
   const recomendacoes: string[] = [];
-  if (foraPadraoGA4 > 0) recomendacoes.push("Migrar mapas GA3 para o padrão GA4.");
+  if (foraPadraoGA4 > 0) recomendacoes.push("Migrar mapas legados e de Universal Analytics para o padrão GA4 Atual.");
   if (semResponsavel > 0) recomendacoes.push("Atribuir responsáveis aos artefatos sem gestão definda.");
   if (desatualizados > 0) recomendacoes.push("Revisar artefatos sem atualização recente.");
   
-  if (foraPadraoGA4 > 0) recomendacaoStr = "Acelerar a migração dos mapas GA3 restantes para o padrão GA4.";
+  if (foraPadraoGA4 > 0) recomendacaoStr = "Acelerar a migração dos mapas restantes para o padrão GA4 Atual.";
   else if (semResponsavel > 0) recomendacaoStr = "Definir propriedades de gestão e responsáveis pelos artefatos órfãos.";
   else if (desatualizados > 0) recomendacaoStr = "Auditar e atualizar artefatos anteriores a 2024.";
 
@@ -182,6 +183,7 @@ export function calculateInsights(results: Artifact[]) {
   return {
     total,
     ga4: counts.ga4,
+    ga4Legado: counts.ga4Legado,
     ga3: counts.ga3,
     mapas: counts.mapas,
     documentos: counts.documentos,
@@ -189,6 +191,7 @@ export function calculateInsights(results: Artifact[]) {
     distribSubproduto,
     porcentagens: {
       ga4: ((counts.ga4 / total) * 100).toFixed(1),
+      ga4Legado: ((counts.ga4Legado / total) * 100).toFixed(1),
       ga3: ((counts.ga3 / total) * 100).toFixed(1),
     },
     problemas: {
@@ -225,7 +228,10 @@ export function searchArtifacts(queryRaw: string): any {
   
   // Identifica se a intenção do usuário envolve filtrar "fora" alguma coisa
   const isNegation = query.includes("nao seguem") || query.includes("nao e") || query.includes("sem") || query.includes("fora de");
-  const targetTerm = query.includes("ga4") ? "ga4" : query.includes("ga3") ? "ga3" : "";
+  const targetTerm = query.includes("ga4 atual") ? "ga4 atual" :
+                     query.includes("ga4") ? "ga4" :
+                     query.includes("universal analytics") ? "universal analytics" :
+                     query.includes("doc") ? "doc" : "";
 
   // Percorre todo o banco testando cada item se ele é aprovado pelos filtros textuais
   const results = inventory.filter((item: Artifact) => {

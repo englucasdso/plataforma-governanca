@@ -258,7 +258,7 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           return 'GA4 Legado';
         }
 
-        return 'Documento / Artefato comum';
+        return 'Doc';
       }
 
       async function extrairDadosPagina(pageId) {

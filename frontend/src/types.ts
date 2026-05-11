@@ -21,15 +21,17 @@ export interface Artifact {
 
 export interface Insights {
   total: number;
-  ga4: number;
-  ga3: number;
+  ga4Atual: number;
+  ga4Legado: number;
+  universalAnalytics: number;
   mapas: number;
   documentos: number;
   distribProduto: { name: string; count: number; percent: string }[];
   distribSubproduto: { name: string; count: number; percent: string }[];
   porcentagens: {
-    ga4: string;
-    ga3: string;
+    ga4Atual: string;
+    ga4Legado: string;
+    universalAnalytics: string;
   };
   searchTerm?: string;
   problemas: {
