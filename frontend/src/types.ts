@@ -28,10 +28,26 @@ export interface Insights {
   documentos: number;
   distribProduto: { name: string; count: number; percent: string }[];
   distribSubproduto: { name: string; count: number; percent: string }[];
+  distribTipos: { name: string; count: number; percent: string }[];
   porcentagens: {
     ga4Atual: string;
     ga4Legado: string;
     universalAnalytics: string;
+    documentos: string;
+  };
+  updates: {
+    last30Days: number;
+    last60Days: number;
+    last90Days: number;
+    olderThan90Days: number;
+    percentLast30Days: string;
+    percentLast60Days: string;
+    percentLast90Days: string;
+    percentOlderThan90Days: string;
+  };
+  versioning: {
+    topUpdated: Artifact[];
+    averageVersions: string;
   };
   searchTerm?: string;
   problemas: {

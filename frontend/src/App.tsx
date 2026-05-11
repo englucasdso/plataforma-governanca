@@ -846,9 +846,7 @@ export default function App() {
     setAppState("results");
   };
   
-  const [geminiAnalysis, setGeminiAnalysis] = useState<any>(null);
-  const [loadingGemini, setLoadingGemini] = useState(false);
-  const [geminiError, setGeminiError] = useState("");
+
 
   const [expandedInventoryRows, setExpandedInventoryRows] = useState<Set<string>>(new Set());
   const [insightFilters, setInsightFilters] = useState({ ga: 'all', produto: 'all', subproduto: 'all' });
@@ -1142,34 +1140,9 @@ export default function App() {
     setInsights(getFilteredInsights(filtered, query));
   };
 
-  const fetchGeminiInsights = async () => {
-    setLoadingGemini(true);
-    setGeminiError("");
-    setGeminiAnalysis(null);
-    try {
-      const filtered = results; // Uses the current filtered results or all results
-      const res = await fetch("/api/insights/artifacts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(filtered)
-      });
-      if (!res.ok) throw new Error("Erro na API.");
-      const data = await res.json();
-      setGeminiAnalysis(data);
-    } catch (err: any) {
-      console.error(err);
-      setGeminiError("Não foi possível gerar a análise com a IA no momento.");
-    } finally {
-      setLoadingGemini(false);
-    }
-  };
-
   useEffect(() => {
     if (appState === "insights") {
       applyInsightFilters();
-      if (!geminiAnalysis && !loadingGemini && !geminiError) {
-         fetchGeminiInsights();
-      }
     }
   }, [insightFilters, appState]);
 
@@ -2063,6 +2036,9 @@ export default function App() {
                   </div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Total Artefatos</p>
                   <p className="text-4xl font-extrabold text-gray-900 leading-none">{insights.total}</p>
+                  <p className="text-[10px] text-gray-400 font-bold mt-2 tracking-wider uppercase">
+                    Mapas ({insights.mapas}) vs Docs ({insights.documentos})
+                  </p>
                 </div>
 
                 <div className="group relative glass-card p-6 rounded-[32px] border-b-4 border-b-green-500 border border-gray-100 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1">
@@ -2098,74 +2074,116 @@ export default function App() {
                   </div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Documentos</p>
                   <p className="text-4xl font-extrabold text-gray-900 leading-none">{insights.documentos}</p>
+                  <span className="absolute top-6 right-6 text-[10px] font-black text-gray-600 bg-gray-100 px-2 py-1 rounded-full">{insights.porcentagens.documentos}%</span>
                 </div>
               </div>
 
-              {/* Gemini Insights UI Layout */}
-              {loadingGemini ? (
-                <div className="flex flex-col items-center justify-center p-20 glass-card rounded-[40px] border border-gray-100 mb-12">
-                  <Sparkles className="w-8 h-8 text-purple-500 animate-pulse mb-6" />
-                  <p className="text-sm font-bold text-gray-500 uppercase tracking-widest animate-pulse">A Inteligência do Omni 360 está analisando os artefatos...</p>
-                </div>
-              ) : geminiError ? (
-                <div className="flex flex-col items-center justify-center p-20 glass-card rounded-[40px] border border-red-100 bg-red-50/50 mb-12">
-                  <AlertTriangle className="w-8 h-8 text-red-500 mb-6" />
-                  <p className="text-sm font-bold text-red-600 mb-4">{geminiError}</p>
-                  <button onClick={fetchGeminiInsights} className="px-6 py-2 bg-white rounded-full text-xs font-bold text-gray-800 border shadow-sm transition-colors hover:bg-gray-50">Tentar Novamente</button>
-                </div>
-              ) : geminiAnalysis && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-                  <div className="lg:col-span-2 glass-card p-12 rounded-[40px] border border-gray-100 relative overflow-hidden flex flex-col gap-10">
-                    <div>
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                        Análise Gemini
-                      </h4>
-                      <h3 className="text-3xl font-medium tracking-tight text-gray-900 leading-tight mb-6">Visão Executiva</h3>
-                      <p className="text-[15px] text-gray-800 leading-relaxed font-sans font-medium whitespace-pre-wrap">
-                        {geminiAnalysis.resumoExecutivo}
-                      </p>
-                    </div>
-
-                    <div className="bg-gray-50/80 rounded-3xl p-8 border border-gray-100 mt-auto">
-                      <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-6 flex items-center gap-2">
-                        <CheckCircle2 className="w-3 h-3 text-gray-400" /> Recomendação de Ação
-                      </h5>
-                      <p className="text-[14px] text-gray-700 leading-relaxed font-medium">
-                        {geminiAnalysis.recomendacaoAcao}
-                      </p>
+              {/* Detailed Operational Insights Panels */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                <div className="lg:col-span-2 flex flex-col gap-8">
+                  {/* Tempo de Atualização */}
+                  <div className="glass-card p-10 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                       <Clock className="w-4 h-4 text-purple-500" />
+                       Frescor da Base
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Últimos 30 dias</p>
+                        <p className="text-2xl font-bold text-gray-900">{insights.updates?.last30Days || 0}</p>
+                        <p className="text-[11px] font-bold text-green-600">{insights.updates?.percentLast30Days || "0"}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Últimos 60 dias</p>
+                        <p className="text-2xl font-bold text-gray-900">{insights.updates?.last60Days || 0}</p>
+                        <p className="text-[11px] font-bold text-green-500">{insights.updates?.percentLast60Days || "0"}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Últimos 90 dias</p>
+                        <p className="text-2xl font-bold text-gray-900">{insights.updates?.last90Days || 0}</p>
+                        <p className="text-[11px] font-bold text-yellow-600">{insights.updates?.percentLast90Days || "0"}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Defasados (+90 dias)</p>
+                        <p className="text-2xl font-bold text-red-600">{insights.updates?.olderThan90Days || 0}</p>
+                        <p className="text-[11px] font-bold text-red-500">{insights.updates?.percentOlderThan90Days || "0"}%</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="lg:col-span-1 flex flex-col gap-6">
-                    <div className="p-8 rounded-[40px] border border-gray-100 bg-white relative flex flex-col h-full shadow-sm">
-                      <h4 className="text-sm font-bold text-gray-900 uppercase mb-6 flex items-center gap-2">
-                        Saúde Geral do Hub
-                      </h4>
-                      <p className="text-sm text-gray-600 leading-relaxed font-medium mb-8">
-                        {geminiAnalysis.saudeGeral}
-                      </p>
+                  {/* Distribuição por Produto */}
+                  <div className="glass-card p-10 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                       <Layers className="w-4 h-4 text-purple-500" />
+                       Distribuição de Escopos
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="flex flex-col gap-4">
+                         <h5 className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Produtos</h5>
+                         {insights.distribProduto?.slice(0, 4).map((p, i) => (
+                            <div key={i} className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                               <span className="text-sm font-bold text-gray-800">{p.name === "-" ? "N/A" : p.name}</span>
+                               <div className="flex items-center gap-4">
+                                  <span className="text-[10px] font-bold text-gray-500 uppercase">{p.count} itens</span>
+                               </div>
+                            </div>
+                         ))}
+                      </div>
 
-                      <div className="mt-8 border-t border-gray-100 pt-8">
-                        <h4 className="text-sm font-bold text-gray-900 uppercase mb-6">
-                          Pontos de Atenção
-                        </h4>
-                        <ul className="space-y-4">
-                          {geminiAnalysis.pontosAtencao?.map((ponto: string, i: number) => (
-                            <li key={i} className="flex items-start gap-3 group">
-                              <div className="mt-2 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                              <span className="text-[13px] font-bold text-gray-700 leading-snug">{ponto}</span>
-                            </li>
-                          ))}
-                          {(!geminiAnalysis.pontosAtencao || geminiAnalysis.pontosAtencao.length === 0) && (
-                            <li className="text-sm text-gray-500 italic">Nenhum alerta crítico encontrado.</li>
-                          )}
-                        </ul>
+                      <div className="flex flex-col gap-4">
+                         <h5 className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Subprodutos</h5>
+                         {insights.distribSubproduto?.slice(0, 4).map((p, i) => (
+                            <div key={i} className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                               <span className="text-sm font-bold text-gray-800">{p.name === "-" ? "N/A" : p.name}</span>
+                               <div className="flex items-center gap-4">
+                                  <span className="text-[10px] font-bold text-gray-500 uppercase">{p.count} itens</span>
+                               </div>
+                            </div>
+                         ))}
                       </div>
                     </div>
                   </div>
                 </div>
-              )}
+
+                <div className="lg:col-span-1 flex flex-col gap-8">
+                  {/* Versionamento */}
+                  <div className="p-8 rounded-[40px] border border-gray-100 bg-white shadow-sm flex flex-col items-center justify-center text-center">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
+                      Média de Versões
+                    </h4>
+                    <div className="w-20 h-20 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 mb-4">
+                      <FileText className="w-8 h-8" />
+                    </div>
+                    <p className="text-5xl font-black text-gray-900">{insights.versioning?.averageVersions || "1"}</p>
+                    <p className="text-sm font-medium text-gray-500 mt-2">Versões por artefato</p>
+                  </div>
+
+                  {/* Top Atualizados */}
+                  <div className="p-8 rounded-[40px] border border-gray-100 bg-white shadow-sm flex-1">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
+                      Artefatos Mais Iterados
+                    </h4>
+                    <div className="flex flex-col gap-3 mt-4">
+                      {insights.versioning?.topUpdated?.map((item, i) => (
+                        <div key={i} className="flex flex-col border-b border-gray-50 pb-3 last:border-0 last:pb-0">
+                           <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-gray-800 hover:text-purple-600 cursor-pointer truncate" title={item.titulo}>
+                             {item.titulo}
+                           </a>
+                           <div className="flex justify-between items-center mt-1">
+                              <span className="text-[10px] text-gray-400 font-medium">{item.produto || "N/A"}</span>
+                              <span className="text-[10px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full">v{item.versao}</span>
+                           </div>
+                        </div>
+                      ))}
+                      {(!insights.versioning?.topUpdated || insights.versioning.topUpdated.length === 0) && (
+                        <span className="text-xs text-gray-400 text-center py-4 italic">Sem versionamento no conjunto.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </motion.section>
           )}
 

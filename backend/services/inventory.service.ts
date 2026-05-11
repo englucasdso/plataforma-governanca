@@ -126,6 +126,43 @@ export function calculateInsights(results: Artifact[]) {
     .map(([name, count]) => ({ name, count, percent: ((count / total) * 100).toFixed(1) }))
     .sort((a, b) => b.count - a.count);
 
+  const distribTipos = [
+    { name: "GA4 Atual", count: counts.ga4Atual, percent: ((counts.ga4Atual / total) * 100).toFixed(1) },
+    { name: "GA4 Legado", count: counts.ga4Legado, percent: ((counts.ga4Legado / total) * 100).toFixed(1) },
+    { name: "Universal Analytics", count: counts.universalAnalytics, percent: ((counts.universalAnalytics / total) * 100).toFixed(1) },
+    { name: "Documentação", count: counts.documentos, percent: ((counts.documentos / total) * 100).toFixed(1) },
+  ].sort((a, b) => b.count - a.count);
+
+  const now = new Date();
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  let last30Days = 0, last60Days = 0, last90Days = 0, olderThan90Days = 0;
+  
+  results.forEach(item => {
+    let old = true;
+    if (item.ultima_atualizacao) {
+      const parts = item.ultima_atualizacao.split('/');
+      let d = new Date(item.ultima_atualizacao);
+      if (parts.length === 3) {
+         d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`);
+      }
+      if (!isNaN(d.getTime())) {
+        const daysDiff = (now.getTime() - d.getTime()) / MS_PER_DAY;
+        if (daysDiff <= 30) { last30Days++; last60Days++; last90Days++; old = false; }
+        else if (daysDiff <= 60) { last60Days++; last90Days++; old = false; }
+        else if (daysDiff <= 90) { last90Days++; old = false; }
+      }
+    }
+    if (old) olderThan90Days++;
+  });
+
+  const topUpdated = [...results]
+    .filter(a => !!a.versao && !isNaN(Number(a.versao)))
+    .sort((a, b) => Number(b.versao) - Number(a.versao))
+    .slice(0, 5);
+
+  const validVersions = results.map(r => Number(r.versao)).filter(n => !isNaN(n));
+  const averageVersions = validVersions.length > 0 ? (validVersions.reduce((a, b) => a + b, 0) / validVersions.length).toFixed(1) : "1";
+
   // Deteção de Problemas (Orfãos, defasados e mal-estruturados)
   const semResponsavel = results.filter(i => !i.responsavel || i.responsavel === "-").length;
   const semSubproduto = results.filter(i => !i.subproduto || i.subproduto === "-").length;
@@ -189,10 +226,26 @@ export function calculateInsights(results: Artifact[]) {
     documentos: counts.documentos,
     distribProduto,
     distribSubproduto,
+    distribTipos,
     porcentagens: {
       ga4Atual: ((counts.ga4Atual / total) * 100).toFixed(1),
       ga4Legado: ((counts.ga4Legado / total) * 100).toFixed(1),
       universalAnalytics: ((counts.universalAnalytics / total) * 100).toFixed(1),
+      documentos: ((counts.documentos / total) * 100).toFixed(1),
+    },
+    updates: {
+      last30Days,
+      last60Days,
+      last90Days,
+      olderThan90Days,
+      percentLast30Days: ((last30Days / total) * 100).toFixed(1),
+      percentLast60Days: ((last60Days / total) * 100).toFixed(1),
+      percentLast90Days: ((last90Days / total) * 100).toFixed(1),
+      percentOlderThan90Days: ((olderThan90Days / total) * 100).toFixed(1),
+    },
+    versioning: {
+      topUpdated,
+      averageVersions,
     },
     problemas: {
       semResponsavel,

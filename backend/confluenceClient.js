@@ -217,29 +217,71 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
       }
 
       function classificarTipoMapaDoDoc(doc) {
-        const txtCompleto = String(doc.documentElement.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const txtCompleto = String(doc.documentElement.textContent || '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+          
         const has = (t) => txtCompleto.includes(t);
-
-        if (
-          has('event_category') || has('eventcategory') || has('event category') ||
-          has('universal analytics') || has('ga3')
-        ) {
+        
+        const temUniversalSnake =
+          has('event_category') &&
+          has('event_action') &&
+          has('event_label');
+        const temUniversalCamel =
+          has('eventcategory') &&
+          has('eventaction') &&
+          has('eventlabel');
+          
+        if (temUniversalSnake || temUniversalCamel) {
           return 'Universal Analytics';
         }
-
-        const temDatalayer = has('datalayer') || has('data layer');
-        const temEventName = has('event_name') || has('event name') || has('event type') || has('event_type');
-        const temScreen = has('screen') || has('ga_event') || has('page_view') || has('page view');
         
-        const isGA4Atual = (temDatalayer && temEventName && temScreen) || has('ga4 atual');
-
-        if (isGA4Atual) {
+        const temDataLayerPush =
+          has('datalayer.push') ||
+          has('data layer') ||
+          (has('datalayer') && has('push'));
+          
+        const temBaseGA4Atual =
+          temDataLayerPush &&
+          has('event') &&
+          (has('event_type') || has('eventtype')) &&
+          has('product') &&
+          has('user') &&
+          has('debug');
+          
+        const temScreenData =
+          has('screen');
+          
+        const temEventData =
+          has('ga_event') &&
+          has('location') &&
+          has('action') &&
+          has('element_name');
+          
+        if (temBaseGA4Atual && (temScreenData || temEventData)) {
           return 'GA4 Atual';
         }
+        
+        const temSinalGA4Legado =
+          temDataLayerPush ||
+          has('event_name') ||
+          has('eventname') ||
+          has('event_type') ||
+          has('eventtype') ||
+          has('ga_event') ||
+          has('event_data') ||
+          has('screen_data') ||
+          has('pageview') ||
+          has('page_view') ||
+          has('page view') ||
+          has('page') ||
+          has('flow') ||
+          has('ambiente') ||
+          has('produto') ||
+          has('funcionalidade');
 
-        const isGA4Legado = temDatalayer || temEventName || has('ga_event') || has('event_data') || has('pageview') || has('ga4');
-
-        if (isGA4Legado) {
+        if (temSinalGA4Legado) {
           return 'GA4 Legado';
         }
 
