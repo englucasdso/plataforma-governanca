@@ -219,38 +219,46 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
       function classificarTipoMapaDoDoc(doc) {
         const tabelas = Array.from(doc.querySelectorAll('table')).slice(0, 40);
 
-        let temGA3 = false;
-        let temGA4 = false;
-
+        let txtCompleto = '';
         for (const tabela of tabelas) {
-          const texto = String(tabela.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
-
-          if (
-            texto.includes('event_category') ||
-            texto.includes('event_action') ||
-            texto.includes('event_label') ||
-            texto.includes('eventcategory') ||
-            texto.includes('eventaction') ||
-            texto.includes('eventlabel')
-          ) {
-            temGA3 = true;
-          }
-
-          if (
-            texto.includes('event_type') ||
-            texto.includes('eventtype') ||
-            texto.includes('event_name') ||
-            texto.includes('eventname') ||
-            texto.includes('ga_event') ||
-            (texto.includes('location') && texto.includes('action') && texto.includes('label'))
-          ) {
-            temGA4 = true;
-          }
+          txtCompleto += String(tabela.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase() + ' ';
         }
 
-        if (temGA3) return 'GA3';
-        if (temGA4) return 'GA4';
-        return '';
+        if (
+          (txtCompleto.includes('event_category') && txtCompleto.includes('event_action') && txtCompleto.includes('event_label')) ||
+          (txtCompleto.includes('eventcategory') && txtCompleto.includes('eventaction') && txtCompleto.includes('eventlabel'))
+        ) {
+          return 'Universal Analytics';
+        }
+
+        const temDatalayerPush = txtCompleto.includes('datalayer.push') || txtCompleto.includes('datalayer . push');
+        const temEventType = txtCompleto.includes('event_type');
+        const temScreenOuGaEvent = txtCompleto.includes('screen') || txtCompleto.includes('ga_event');
+        const temProduct = txtCompleto.includes('product');
+        const temUser = txtCompleto.includes('user');
+        const temDebug = txtCompleto.includes('debug');
+        
+        const isPadronizadoBase = temDatalayerPush && temEventType && temScreenOuGaEvent && temProduct && temUser && temDebug;
+        const isPadronizadoInteracao = temDatalayerPush && temEventType && txtCompleto.includes('ga_event') && txtCompleto.includes('location') && txtCompleto.includes('action') && txtCompleto.includes('element_name');
+
+        if (isPadronizadoBase || isPadronizadoInteracao) {
+          return 'GA4 Atual';
+        }
+
+        const isGA4Legado = temDatalayerPush || temEventType ||
+          txtCompleto.includes('event_name') || txtCompleto.includes('eventname') ||
+          txtCompleto.includes('ga_event') || txtCompleto.includes('screen_data') ||
+          txtCompleto.includes('event_data') || txtCompleto.includes('pageview') ||
+          txtCompleto.includes('page') || txtCompleto.includes('product') ||
+          txtCompleto.includes('flow') || txtCompleto.includes('user-id') ||
+          txtCompleto.includes('user_id') || txtCompleto.includes('ambiente') ||
+          txtCompleto.includes('produto') || txtCompleto.includes('funcionalidade');
+
+        if (isGA4Legado) {
+          return 'GA4 Legado';
+        }
+
+        return 'Documento / Artefato comum';
       }
 
       async function extrairDadosPagina(pageId) {
