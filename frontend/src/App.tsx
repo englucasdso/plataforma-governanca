@@ -2025,8 +2025,10 @@ export default function App() {
                     className="bg-transparent text-xs font-bold text-gray-800 outline-none border-none py-1 cursor-pointer hover:text-bradesco-red transition-colors"
                   >
                     <option value="all">TODOS PADRÕES</option>
-                    <option value="ga4">APENAS GA4</option>
-                    <option value="ga3">APENAS GA3</option>
+                    <option value="ga4 atual">APENAS GA4 ATUAL</option>
+                    <option value="ga4 legado">APENAS GA4 LEGADO</option>
+                    <option value="universal analytics">APENAS UNIVERSAL ANALYTICS</option>
+                    <option value="doc">APENAS DOCUMENTOS</option>
                   </select>
 
                   <select 
@@ -2228,7 +2230,7 @@ export default function App() {
                     
                     <div className="flex flex-wrap gap-3">
                       <span className="red-badge">
-                        {item.tipo_mapa && (normalizar(item.tipo_mapa) === "ga4" || normalizar(item.tipo_mapa) === "ga3") 
+                        {item.tipo_mapa && (normalizar(item.tipo_mapa) === "ga4 atual" || normalizar(item.tipo_mapa) === "ga4 legado" || normalizar(item.tipo_mapa) === "universal analytics") 
                           ? item.tipo_mapa.toUpperCase() 
                           : "Documento"}
                       </span>
@@ -2646,7 +2648,7 @@ export default function App() {
                           {[
                             { l: 'Sem Resp.', v: currentInventoryInsights.problemas.semResponsavel },
                             { l: 'Sem Subp.', v: currentInventoryInsights.problemas.semSubproduto },
-                            { l: 'GA3 (Legado)', v: currentInventoryInsights.problemas.foraPadraoGA4 }
+                            { l: 'Problemas de Tagueamento', v: currentInventoryInsights.problemas.foraPadraoGA4 }
                           ].map((s, i) => (
                             <div key={i} className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
                                <span className="text-gray-400">{s.l}</span>

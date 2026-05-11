@@ -94,9 +94,9 @@ export function calculateInsights(results: Artifact[]) {
 
   // Calculamos a saúde técnica da base identificando os tipos num relance
   const counts = {
-    ga4: results.filter(item => normalize(item.tipo_mapa) === "ga4 atual").length,
+    ga4Atual: results.filter(item => normalize(item.tipo_mapa) === "ga4 atual").length,
     ga4Legado: results.filter(item => normalize(item.tipo_mapa) === "ga4 legado").length,
-    ga3: results.filter(item => normalize(item.tipo_mapa) === "universal analytics").length,
+    universalAnalytics: results.filter(item => normalize(item.tipo_mapa) === "universal analytics").length,
     mapas: results.filter(item => {
       const type = normalize(item.tipo_mapa);
       return type === "ga4 atual" || type === "ga4 legado" || type === "universal analytics";
@@ -142,13 +142,13 @@ export function calculateInsights(results: Artifact[]) {
   else if (totalProblemas / total > 0.1) nivelRisco = 'medio';
 
   // Aderência ao Padrão Tecnológico
-  const scoreAderencia = counts.mapas > 0 ? (counts.ga4 / counts.mapas) * 100 : 100;
+  const scoreAderencia = counts.mapas > 0 ? (counts.ga4Atual / counts.mapas) * 100 : 100;
   let statusAderencia: 'excelente' | 'bom' | 'critico' = 'excelente';
-  let interpretacaoAderencia = "A base está 100% aderente ao padrão GA4";
+  let interpretacaoAderencia = "A base está 100% aderente ao padrão GA4 Atual";
 
   if (scoreAderencia < 100 && scoreAderencia >= 80) {
     statusAderencia = 'bom';
-    interpretacaoAderencia = `A base possui boa aderência (${scoreAderencia.toFixed(0)}%) ao padrão GA4, mas ainda há legados.`;
+    interpretacaoAderencia = `A base possui boa aderência (${scoreAderencia.toFixed(0)}%) ao padrão GA4 Atual, mas ainda há legados.`;
   } else if (scoreAderencia < 80) {
     statusAderencia = 'critico';
     interpretacaoAderencia = "A base apresenta baixa aderência — risco de inconsistência.";
@@ -182,17 +182,17 @@ export function calculateInsights(results: Artifact[]) {
 
   return {
     total,
-    ga4: counts.ga4,
+    ga4Atual: counts.ga4Atual,
     ga4Legado: counts.ga4Legado,
-    ga3: counts.ga3,
+    universalAnalytics: counts.universalAnalytics,
     mapas: counts.mapas,
     documentos: counts.documentos,
     distribProduto,
     distribSubproduto,
     porcentagens: {
-      ga4: ((counts.ga4 / total) * 100).toFixed(1),
+      ga4Atual: ((counts.ga4Atual / total) * 100).toFixed(1),
       ga4Legado: ((counts.ga4Legado / total) * 100).toFixed(1),
-      ga3: ((counts.ga3 / total) * 100).toFixed(1),
+      universalAnalytics: ((counts.universalAnalytics / total) * 100).toFixed(1),
     },
     problemas: {
       semResponsavel,
