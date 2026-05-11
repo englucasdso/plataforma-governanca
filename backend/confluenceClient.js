@@ -218,26 +218,39 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
 
       function classificarTipoMapaDoDoc(doc) {
         const tabelas = Array.from(doc.querySelectorAll('table')).slice(0, 40);
-        const regexDataLayer = /datalayer\s*\.\s*push\s*\(\s*\{/i;
 
-        let ehMapa = false;
         let temGA3 = false;
+        let temGA4 = false;
 
         for (const tabela of tabelas) {
           const texto = String(tabela.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
-          if (regexDataLayer.test(texto)) {
-            ehMapa = true;
+          if (
+            texto.includes('event_category') ||
+            texto.includes('event_action') ||
+            texto.includes('event_label') ||
+            texto.includes('eventcategory') ||
+            texto.includes('eventaction') ||
+            texto.includes('eventlabel')
+          ) {
+            temGA3 = true;
           }
 
-          if (texto.includes('event_category') && texto.includes('event_action') && texto.includes('event_label')) {
-            temGA3 = true;
+          if (
+            texto.includes('event_type') ||
+            texto.includes('eventtype') ||
+            texto.includes('event_name') ||
+            texto.includes('eventname') ||
+            texto.includes('ga_event') ||
+            (texto.includes('location') && texto.includes('action') && texto.includes('label'))
+          ) {
+            temGA4 = true;
           }
         }
 
-        if (!ehMapa) return '';
         if (temGA3) return 'GA3';
-        return 'GA4';
+        if (temGA4) return 'GA4';
+        return '';
       }
 
       async function extrairDadosPagina(pageId) {
