@@ -13,7 +13,7 @@
  */
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, AlertTriangle, Target, Network, Filter, CheckCircle2, AlertCircle, Clock, User, Info, Shield, LogOut, Trash2, Plus, Settings, Landmark, LayoutList, RefreshCw, Check, Loader2, KeyRound, Activity, ArrowRight, Search, ChevronDown, ChevronUp, ChevronLeft, ExternalLink, Download, Sparkles } from "lucide-react";
+import { X, AlertTriangle, Target, Network, Filter, CheckCircle2, AlertCircle, Clock, User, Info, Shield, LogOut, Trash2, Plus, Settings, Landmark, LayoutList, RefreshCw, Check, Loader2, KeyRound, Activity, ArrowRight, Search, ChevronDown, ChevronUp, ChevronLeft, ExternalLink, Download, Sparkles, FileText, Layers } from "lucide-react";
 import Xarrow, { Xwrapper } from 'react-xarrows';
 import { getOperationalInsights } from "./utils/inventoryHelpers";
 import { fetchInventory, searchContent, fetchUsers, createUser, updateUser, deleteUser } from "./services/api";
@@ -1978,7 +1978,20 @@ export default function App() {
           </section>
 
           {/* Summary / Insights Area */}
-          {insights && insights.problemas && appState === "insights" && (
+          {appState === "insights" && (
+            !insights ? (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center py-32"
+              >
+                <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mb-6">
+                  <Filter className="w-8 h-8 text-gray-300" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhum insight disponível</h3>
+                <p className="text-sm font-medium text-gray-500">A busca atual não retornou resultados suficientes para gerar análises.</p>
+              </motion.div>
+            ) : (
             <motion.section 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -2185,6 +2198,7 @@ export default function App() {
               </div>
 
             </motion.section>
+            )
           )}
 
           {/* Graph Visualization Section */}
@@ -2637,6 +2651,16 @@ export default function App() {
                       </table>
                     </div>
                   </motion.div>
+                ) : !currentInventoryInsights ? (
+                  <motion.div 
+                    key="panel-empty"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="p-12 text-center text-gray-500 font-bold mb-8 bg-gray-50 rounded-[40px]"
+                  >
+                    Nenhum insight disponível para o filtro atual.
+                  </motion.div>
                 ) : (
                   <motion.div 
                     key="panel"
@@ -2651,9 +2675,9 @@ export default function App() {
                        <div className={`p-8 rounded-[32px] border bg-white shadow-sm flex flex-col items-center text-center
                          ${currentInventoryInsights.problemas.nivelRisco === 'alto' ? 'border-red-200' : 'border-gray-100'}
                        `}>
-                          <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-6">Governança</h4>
-                          <div className="text-4xl font-black text-gray-900 mb-2">{currentInventoryInsights.aderencia.score}%</div>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Aderência à Estratégia</p>
+                          <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-6">Volume na Categoria</h4>
+                          <div className="text-4xl font-black text-gray-900 mb-2">{currentInventoryInsights.total}</div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Artefatos Selecionados</p>
                           <div className={`text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full text-white w-full
                             ${currentInventoryInsights.problemas.nivelRisco === 'alto' ? 'bg-bradesco-gradient shadow-lg shadow-red-100' : 'bg-green-600 shadow-lg shadow-green-100'}
                           `}>
@@ -2666,7 +2690,7 @@ export default function App() {
                           {[
                             { l: 'Sem Resp.', v: currentInventoryInsights.problemas.semResponsavel },
                             { l: 'Sem Subp.', v: currentInventoryInsights.problemas.semSubproduto },
-                            { l: 'Problemas de Tagueamento', v: currentInventoryInsights.problemas.foraPadraoGA4 }
+                            { l: 'Probs. Tagueamento', v: currentInventoryInsights.problemas.foraPadraoGA4 }
                           ].map((s, i) => (
                             <div key={i} className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
                                <span className="text-gray-400">{s.l}</span>
@@ -2679,35 +2703,38 @@ export default function App() {
                     <div className="lg:col-span-3 space-y-6">
                        {/* Main Insight Card */}
                        <div className="p-10 rounded-[32px] border border-gray-100 bg-white shadow-sm relative overflow-hidden h-full">
-                          <div className="absolute top-0 right-0 p-8">
-                             <Sparkles className="w-8 h-8 text-orange-400/20" />
-                          </div>
                           
                           <div className="relative z-10">
-                            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Análise de IA: Resumo do Cenário</h4>
-                            <p className="text-2xl font-medium tracking-tight text-gray-800 leading-tight mb-10 font-sans whitespace-pre-wrap">
-                               "{currentInventoryInsights.resumoInteligente.textoCenario}"
+                            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Visão Estrutural: Detalhamento do Grupo</h4>
+                            <p className="text-xl font-medium tracking-tight text-gray-800 leading-tight mb-10 font-sans whitespace-pre-wrap">
+                               Análise automática baseada nos {currentInventoryInsights.total} artefatos listados, destacando a distribuição técnica e o volume de atualizações recentes.
                             </p>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                               <div>
-                                  <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-6">Próximos Passos</h5>
-                                  <div className="space-y-4">
-                                     {currentInventoryInsights.resumoInteligente.recomendacoes.slice(0, 3).map((rec, i) => (
-                                       <div key={i} className="flex gap-4 group">
-                                          <div className="w-6 h-6 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-400 group-hover:bg-red-50 group-hover:text-red-600 transition-all">{i+1}</div>
-                                          <p className="text-[12px] font-bold text-gray-700 leading-tight">{rec}</p>
-                                       </div>
-                                     ))}
+                               <div className="space-y-6">
+                                  <div>
+                                    <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-6">Padrão de Tagueamento</h5>
+                                    <div className="space-y-4">
+                                       {currentInventoryInsights.distribTipos?.slice(0, 4).map((tipo, i) => (
+                                         <div key={i} className="flex justify-between items-center text-[11px] font-bold border-b border-gray-50 pb-2 last:border-0">
+                                            <span className="text-gray-700 uppercase pr-4">{tipo.name}</span>
+                                            <span className="text-purple-600 font-black px-2 bg-purple-50 rounded-lg">{tipo.count}</span>
+                                         </div>
+                                       ))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Média de Versões</h5>
+                                    <div className="text-3xl font-black text-purple-600">v{currentInventoryInsights.versioning?.averageVersions || "1"}</div>
                                   </div>
                                </div>
                                <div className="bg-gray-50 border border-gray-100 rounded-3xl p-8">
-                                  <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-6">Distribuição Operacional</h5>
+                                  <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-6">Distribuição Operacional (Subprodutos)</h5>
                                   <div className="space-y-4">
-                                     {currentInventoryInsights.distribProduto.slice(0, 4).map((item, i) => (
+                                     {currentInventoryInsights.distribSubproduto?.slice(0, 4).map((item, i) => (
                                        <div key={i} className="space-y-2">
                                           <div className="flex justify-between items-center text-[9px] font-black">
-                                             <span className="text-gray-700 uppercase truncate pr-4">{item.name}</span>
+                                             <span className="text-gray-700 uppercase truncate pr-4">{item.name === "-" ? "Sem Subproduto" : item.name}</span>
                                              <span className="text-gray-400">{item.percent}%</span>
                                           </div>
                                           <div className="h-1 bg-white rounded-full overflow-hidden">
@@ -2715,6 +2742,9 @@ export default function App() {
                                           </div>
                                        </div>
                                      ))}
+                                     {(!currentInventoryInsights.distribSubproduto || currentInventoryInsights.distribSubproduto.length === 0) && (
+                                       <p className="text-xs text-gray-400 font-medium">Sem dados.</p>
+                                     )}
                                   </div>
                                </div>
                             </div>

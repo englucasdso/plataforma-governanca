@@ -42,7 +42,7 @@ export function getOperationalInsights(inventory: Artifact[]) {
     itemsByDate[itemDate].push(item);
   }
 
-  const chartData = [];
+  const chartData: { dateVal: number; value: number; items: Artifact[]; label?: string; height?: string }[] = [];
   let localMaxVal = 0;
   
   const DAYS_TO_SHOW = 10; // Mostrar 10 dias
