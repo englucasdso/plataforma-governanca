@@ -224,10 +224,50 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           
         const has = (t) => txtCompleto.includes(t);
         
+        const temDataLayerPush =
+          has('datalayer.push') ||
+          has('data layer') ||
+          (has('datalayer') && has('push'));
+          
+        // 1. GA4 Atual
+        const temBaseGA4Atual =
+          temDataLayerPush &&
+          has('event') &&
+          (has('event_type') || has('eventtype')) &&
+          has('product') &&
+          has('debug');
+          
+        const temEventoGA4Atual =
+          has('page_view') ||
+          has('event_data') ||
+          has('screen_data');
+          
+        if (temBaseGA4Atual && temEventoGA4Atual) {
+          return 'GA4 Atual';
+        }
+        
+        // 2. GA4 Legado
+        const temSinalAnalitico =
+          has('event_type') ||
+          has('eventtype') ||
+          has('event_name') ||
+          has('eventname') ||
+          has('ga_event') ||
+          has('event_data') ||
+          has('screen_data') ||
+          has('page_view') ||
+          has('pageview');
+          
+        if (temDataLayerPush && temSinalAnalitico) {
+          return 'GA4 Legado';
+        }
+        
+        // 3. Universal Analytics
         const temUniversalSnake =
           has('event_category') &&
           has('event_action') &&
           has('event_label');
+          
         const temUniversalCamel =
           has('eventcategory') &&
           has('eventaction') &&
@@ -237,51 +277,7 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           return 'Universal Analytics';
         }
         
-        const temDataLayerPush =
-          has('datalayer.push') ||
-          has('data layer') ||
-          (has('datalayer') && has('push'));
-          
-        const temBaseGA4Atual =
-          temDataLayerPush &&
-          has('event') &&
-          (has('event_type') || has('eventtype')) &&
-          has('product') &&
-          has('user') &&
-          has('debug');
-          
-        const temScreenData =
-          has('screen');
-          
-        const temEventData =
-          has('ga_event') &&
-          has('location') &&
-          has('action') &&
-          has('element_name');
-          
-        if (temBaseGA4Atual && (temScreenData || temEventData)) {
-          return 'GA4 Atual';
-        }
-        
-        const temBaseLegado =
-          temDataLayerPush &&
-          (
-            has('event_name') ||
-            has('eventname') ||
-            has('event_type') ||
-            has('eventtype') ||
-            has('ga_event') ||
-            has('event_data') ||
-            has('screen_data') ||
-            has('pageview') ||
-            has('page_view') ||
-            has('page view')
-          );
-
-        if (temBaseLegado) {
-          return 'GA4 Legado';
-        }
-
+        // 4. Doc
         return 'Doc';
       }
 
