@@ -263,25 +263,22 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           return 'GA4 Atual';
         }
         
-        const temSinalGA4Legado =
-          temDataLayerPush ||
-          has('event_name') ||
-          has('eventname') ||
-          has('event_type') ||
-          has('eventtype') ||
-          has('ga_event') ||
-          has('event_data') ||
-          has('screen_data') ||
-          has('pageview') ||
-          has('page_view') ||
-          has('page view') ||
-          has('page') ||
-          has('flow') ||
-          has('ambiente') ||
-          has('produto') ||
-          has('funcionalidade');
+        const temBaseLegado =
+          temDataLayerPush &&
+          (
+            has('event_name') ||
+            has('eventname') ||
+            has('event_type') ||
+            has('eventtype') ||
+            has('ga_event') ||
+            has('event_data') ||
+            has('screen_data') ||
+            has('pageview') ||
+            has('page_view') ||
+            has('page view')
+          );
 
-        if (temSinalGA4Legado) {
+        if (temBaseLegado) {
           return 'GA4 Legado';
         }
 
