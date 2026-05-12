@@ -224,12 +224,27 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           
         const has = (t) => txtCompleto.includes(t);
         
+        // 1. Universal Analytics
+        const temUniversalSnake =
+          has('event_category') &&
+          has('event_action') &&
+          has('event_label');
+          
+        const temUniversalCamel =
+          has('eventcategory') &&
+          has('eventaction') &&
+          has('eventlabel');
+          
+        if (temUniversalSnake || temUniversalCamel) {
+          return 'Universal Analytics';
+        }
+
         const temDataLayerPush =
           has('datalayer.push') ||
           has('data layer') ||
           (has('datalayer') && has('push'));
           
-        // 1. GA4 Atual
+        // 2. GA4 Atual
         const temBaseGA4Atual =
           temDataLayerPush &&
           has('event') &&
@@ -246,7 +261,7 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           return 'GA4 Atual';
         }
         
-        // 2. GA4 Legado
+        // 3. GA4 Legado
         const temSinalAnalitico =
           has('event_type') ||
           has('eventtype') ||
@@ -260,21 +275,6 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           
         if (temDataLayerPush && temSinalAnalitico) {
           return 'GA4 Legado';
-        }
-        
-        // 3. Universal Analytics
-        const temUniversalSnake =
-          has('event_category') &&
-          has('event_action') &&
-          has('event_label');
-          
-        const temUniversalCamel =
-          has('eventcategory') &&
-          has('eventaction') &&
-          has('eventlabel');
-          
-        if (temUniversalSnake || temUniversalCamel) {
-          return 'Universal Analytics';
         }
         
         // 4. Doc
