@@ -179,8 +179,9 @@ const GraphView = ({ data, isEmbedded = false, onClose }: { data: Artifact[], is
                                               </h5>
                                               <div className="flex items-center gap-2">
                                                  <div className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider
-                                                    ${normalizar(m.tipo_mapa) === 'ga4 atual' 
+                                                    ${normalizar(m.tipo_mapa) === 'ga4 atual conforme' 
                                                       ? 'bg-green-100 text-green-700 border border-green-200' 
+                                                      : normalizar(m.tipo_mapa) === 'ga4 atual incompleto' ? 'bg-orange-50 text-orange-700 border border-orange-200'
                                                       : normalizar(m.tipo_mapa) === 'universal analytics' ? 'bg-red-50 text-bradesco-red border border-red-100'
                                                       : normalizar(m.tipo_mapa) === 'ga4 legado' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
                                                       : 'bg-gray-100 text-gray-500 border border-gray-200'}
@@ -1161,12 +1162,13 @@ export default function App() {
     }
 
     // Quick Chips (shortcuts)
-    if (activeChip === 'GA4 Atual') base = base.filter(i => normalizar(i.tipo_mapa) === 'ga4 atual');
+    if (activeChip === 'GA4 Atual Conforme') base = base.filter(i => normalizar(i.tipo_mapa) === 'ga4 atual conforme');
+    if (activeChip === 'GA4 Atual Incompleto') base = base.filter(i => normalizar(i.tipo_mapa) === 'ga4 atual incompleto');
     if (activeChip === 'Universal Analytics') base = base.filter(i => normalizar(i.tipo_mapa) === 'universal analytics');
     if (activeChip === 'GA4 Legado') base = base.filter(i => normalizar(i.tipo_mapa) === 'ga4 legado');
     if (activeChip === 'Doc') base = base.filter(i => {
       const t = normalizar(i.tipo_mapa);
-      return t === 'doc' || (t !== 'ga4 atual' && t !== 'ga4 legado' && t !== 'universal analytics');
+      return t === 'doc' || (t !== 'ga4 atual conforme' && t !== 'ga4 atual incompleto' && t !== 'ga4 legado' && t !== 'universal analytics');
     });
     if (activeChip === 'Sem responsável') base = base.filter(i => !i.responsavel || i.responsavel === '-');
     if (activeChip === 'Sem subproduto') base = base.filter(i => !i.subproduto || i.subproduto === '-');
@@ -1188,10 +1190,11 @@ export default function App() {
       base = base.filter(i => {
         let isMatch = false;
         const t = normalizar(i.tipo_mapa);
-        if (inventoryFilters.status.includes('ga4 atual') && t === 'ga4 atual') isMatch = true;
+        if (inventoryFilters.status.includes('ga4 atual conforme') && t === 'ga4 atual conforme') isMatch = true;
+        if (inventoryFilters.status.includes('ga4 atual incompleto') && t === 'ga4 atual incompleto') isMatch = true;
         if (inventoryFilters.status.includes('ga4 legado') && t === 'ga4 legado') isMatch = true;
         if (inventoryFilters.status.includes('universal analytics') && t === 'universal analytics') isMatch = true;
-        if (inventoryFilters.status.includes('doc') && (t === 'doc' || (t !== 'ga4 atual' && t !== 'ga4 legado' && t !== 'universal analytics'))) isMatch = true;
+        if (inventoryFilters.status.includes('doc') && (t === 'doc' || (t !== 'ga4 atual conforme' && t !== 'ga4 atual incompleto' && t !== 'ga4 legado' && t !== 'universal analytics'))) isMatch = true;
         return isMatch;
       });
     }
@@ -1226,12 +1229,13 @@ export default function App() {
   const inventorySummary = useMemo(() => {
     return {
       total: filteredInventory.length,
-      ga4Atual: filteredInventory.filter(i => normalizar(i.tipo_mapa) === 'ga4 atual').length,
+      ga4AtualConforme: filteredInventory.filter(i => normalizar(i.tipo_mapa) === 'ga4 atual conforme').length,
+      ga4AtualIncompleto: filteredInventory.filter(i => normalizar(i.tipo_mapa) === 'ga4 atual incompleto').length,
       ga4Legado: filteredInventory.filter(i => normalizar(i.tipo_mapa) === 'ga4 legado').length,
       universalAnalytics: filteredInventory.filter(i => normalizar(i.tipo_mapa) === 'universal analytics').length,
       docs: filteredInventory.filter(i => {
         const t = normalizar(i.tipo_mapa);
-        return t === 'doc' || (t !== 'ga4 atual' && t !== 'ga4 legado' && t !== 'universal analytics');
+        return t === 'doc' || (t !== 'ga4 atual conforme' && t !== 'ga4 atual incompleto' && t !== 'ga4 legado' && t !== 'universal analytics');
       }).length
     };
   }, [filteredInventory]);
@@ -2011,7 +2015,8 @@ export default function App() {
                     className="bg-transparent text-xs font-bold text-gray-800 outline-none border-none py-1 cursor-pointer hover:text-bradesco-red transition-colors"
                   >
                     <option value="all">TODOS PADRÕES</option>
-                    <option value="ga4 atual">APENAS GA4 ATUAL</option>
+                    <option value="ga4 atual conforme">APENAS GA4 ATUAL CONFORME</option>
+                    <option value="ga4 atual incompleto">APENAS GA4 ATUAL INCOMPLETO</option>
                     <option value="ga4 legado">APENAS GA4 LEGADO</option>
                     <option value="universal analytics">APENAS UNIVERSAL ANALYTICS</option>
                     <option value="doc">APENAS DOCUMENTOS</option>
@@ -2042,7 +2047,7 @@ export default function App() {
               </div>
 
               {/* KPIs - Refreshed with Semantic Colors */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-12">
                 <div className="group relative glass-card p-6 rounded-[32px] border border-gray-100 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1">
                   <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 mb-4 group-hover:scale-110 transition-transform">
                     <Target className="w-6 h-6" />
@@ -2058,9 +2063,18 @@ export default function App() {
                   <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center text-green-600 mb-4 group-hover:scale-110 transition-transform">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">GA4 Atual</p>
-                  <p className="text-4xl font-extrabold text-gray-900 leading-none">{insights.ga4Atual}</p>
-                  <span className="absolute top-6 right-6 text-[10px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-full">{insights.porcentagens.ga4Atual}%</span>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">GA4 Atual Conf.</p>
+                  <p className="text-4xl font-extrabold text-gray-900 leading-none">{insights.ga4AtualConforme}</p>
+                  <span className="absolute top-6 right-6 text-[10px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-full">{insights.porcentagens.ga4AtualConforme}%</span>
+                </div>
+
+                <div className="group relative glass-card p-6 rounded-[32px] border-b-4 border-b-orange-500 border border-gray-100 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1">
+                  <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600 mb-4 group-hover:scale-110 transition-transform">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">GA4 Atual Incomp.</p>
+                  <p className="text-4xl font-extrabold text-gray-900 leading-none">{insights.ga4AtualIncompleto}</p>
+                  <span className="absolute top-6 right-6 text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-full">{insights.porcentagens.ga4AtualIncompleto}%</span>
                 </div>
 
                 <div className="group relative glass-card p-6 rounded-[32px] border-b-4 border-b-yellow-500 border border-gray-100 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1">
@@ -2076,7 +2090,7 @@ export default function App() {
                   <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-bradesco-red mb-4 group-hover:scale-110 transition-transform">
                     <AlertCircle className="w-6 h-6" />
                   </div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Universal Analytics</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Univ. Analytics</p>
                   <p className="text-4xl font-extrabold text-gray-900 leading-none">{insights.universalAnalytics}</p>
                   <span className="absolute top-6 right-6 text-[10px] font-black text-bradesco-red bg-red-50 px-2 py-1 rounded-full">{insights.porcentagens.universalAnalytics}%</span>
                 </div>
@@ -2262,9 +2276,9 @@ export default function App() {
                     
                     <div className="flex flex-wrap gap-3">
                       <span className="red-badge">
-                        {item.tipo_mapa && (normalizar(item.tipo_mapa) === "ga4 atual" || normalizar(item.tipo_mapa) === "ga4 legado" || normalizar(item.tipo_mapa) === "universal analytics") 
+                        {item.tipo_mapa && (normalizar(item.tipo_mapa) === "ga4 atual conforme" || normalizar(item.tipo_mapa) === "ga4 atual incompleto" || normalizar(item.tipo_mapa) === "ga4 legado" || normalizar(item.tipo_mapa) === "universal analytics") 
                           ? item.tipo_mapa.toUpperCase() 
-                          : "Documento"}
+                          : "DOCUMENTO"}
                       </span>
                       {item.produto && <span className="red-badge">{item.produto}</span>}
                       {item.subproduto && <span className="red-badge">{item.subproduto}</span>}
@@ -2391,7 +2405,7 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 justify-center">
-                    {['Todos', 'GA4 Atual', 'GA4 Legado', 'Universal Analytics', 'Doc', 'Sem responsável', 'Sem subproduto'].map(chip => (
+                    {['Todos', 'GA4 Atual Conforme', 'GA4 Atual Incompleto', 'GA4 Legado', 'Universal Analytics', 'Doc', 'Sem responsável', 'Sem subproduto'].map(chip => (
                       <button 
                         key={chip}
                         onClick={() => setActiveChip(chip)}
@@ -2411,11 +2425,11 @@ export default function App() {
                 {/* Grid of Independent Filters */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                   {[
-                    { label: 'Tipo de Mapa', key: 'tipo_mapa', options: [{ v: 'all', l: 'QUALQUER TIPO' }, { v: 'universal analytics', l: 'UNIVERSAL ANALYTICS' }, { v: 'ga4 atual', l: 'GA4 ATUAL' }, { v: 'ga4 legado', l: 'GA4 LEGADO' }, { v: 'doc', l: 'DOC' }] },
+                    { label: 'Tipo de Mapa', key: 'tipo_mapa', options: [{ v: 'all', l: 'QUALQUER TIPO' }, { v: 'universal analytics', l: 'UNIVERSAL ANALYTICS' }, { v: 'ga4 atual conforme', l: 'GA4 ATUAL CONFORME' }, { v: 'ga4 atual incompleto', l: 'GA4 ATUAL INCOMPLETO' }, { v: 'ga4 legado', l: 'GA4 LEGADO' }, { v: 'doc', l: 'DOC' }] },
                     { label: 'Produto', key: 'produto', options: [{ v: 'all', l: 'TODOS PRODUTOS' }, ...Array.from(new Set(results.map(r => r.produto))).filter(Boolean).map(p => ({ v: p, l: String(p).toUpperCase() }))] },
                     { label: 'Subproduto', key: 'subproduto', options: [{ v: 'all', l: 'QUALQUER SUB' }, ...Array.from(new Set(results.map(r => r.subproduto))).filter(Boolean).map(s => ({ v: s, l: String(s).toUpperCase() }))] },
                     { label: 'Responsável', key: 'responsavel', options: [{ v: 'all', l: 'RESPONSÁVEL' }, ...Array.from(new Set(results.map(r => r.responsavel))).filter(Boolean).map(r => ({ v: r, l: String(r).toUpperCase() }))] },
-                    { label: 'Classificação', key: 'status', options: [{ v: 'all', l: 'STATUS' }, { v: 'ga4 atual', l: 'GA4 ATUAL' }, { v: 'ga4 legado', l: 'GA4 LEGADO' }, { v: 'universal analytics', l: 'UNIVERSAL ANALYTICS' }, { v: 'doc', l: 'DOC' }] },
+                    { label: 'Classificação', key: 'status', options: [{ v: 'all', l: 'STATUS' }, { v: 'ga4 atual conforme', l: 'GA4 ATUAL CONFORME' }, { v: 'ga4 atual incompleto', l: 'GA4 ATUAL INCOMPLETO' }, { v: 'ga4 legado', l: 'GA4 LEGADO' }, { v: 'universal analytics', l: 'UNIVERSAL ANALYTICS' }, { v: 'doc', l: 'DOC' }] },
                     { label: 'Ano Ref.', key: 'ano', options: [{ v: 'all', l: 'TODAS DATAS' }, { v: '2025', l: '2025' }, { v: '2024', l: '2024' }, { v: '2023', l: '2023' }] }
                   ].map(filter => (
                     <MultiSelect 
@@ -2524,7 +2538,7 @@ export default function App() {
                                 <tr id={`row-${item.id}`} className={`group transition-all hover:bg-gray-50/50 ${expandedInventoryRows.has(item.id) ? 'bg-red-50/10' : ''}`}>
                                   <td className="p-6">
                                     <div className="flex items-center justify-center gap-3">
-                                      <div className={`w-3 h-3 rounded-full ${normalizar(item.tipo_mapa) === 'ga4 atual' ? 'bg-green-500 shadow-lg shadow-green-200' : normalizar(item.tipo_mapa) === 'universal analytics' ? 'bg-red-600 shadow-lg shadow-red-200' : normalizar(item.tipo_mapa) === 'ga4 legado' ? 'bg-yellow-500 shadow-lg shadow-yellow-200' : 'bg-gray-300'}`} />
+                                      <div className={`w-3 h-3 rounded-full ${normalizar(item.tipo_mapa) === 'ga4 atual conforme' ? 'bg-green-500 shadow-lg shadow-green-200' : normalizar(item.tipo_mapa) === 'ga4 atual incompleto' ? 'bg-orange-500 shadow-lg shadow-orange-200' : normalizar(item.tipo_mapa) === 'universal analytics' ? 'bg-red-600 shadow-lg shadow-red-200' : normalizar(item.tipo_mapa) === 'ga4 legado' ? 'bg-yellow-500 shadow-lg shadow-yellow-200' : 'bg-gray-300'}`} />
                                       <button 
                                         onClick={() => toggleInventoryRow(item.id)} 
                                         className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-colors"
@@ -2548,7 +2562,8 @@ export default function App() {
                                   </td>
                                   <td className="p-6">
                                     <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter truncate max-w-full
-                                      ${normalizar(item.tipo_mapa) === 'ga4 atual' ? 'bg-green-100 text-green-700' : 
+                                      ${normalizar(item.tipo_mapa) === 'ga4 atual conforme' ? 'bg-green-100 text-green-700' : 
+                                        normalizar(item.tipo_mapa) === 'ga4 atual incompleto' ? 'bg-orange-100 text-orange-700' : 
                                         normalizar(item.tipo_mapa) === 'universal analytics' ? 'bg-red-100 text-red-700' : 
                                         normalizar(item.tipo_mapa) === 'ga4 legado' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}
                                     `}>

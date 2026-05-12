@@ -94,16 +94,17 @@ export function calculateInsights(results: Artifact[]) {
 
   // Calculamos a saúde técnica da base identificando os tipos num relance
   const counts = {
-    ga4Atual: results.filter(item => normalize(item.tipo_mapa) === "ga4 atual").length,
+    ga4AtualConforme: results.filter(item => normalize(item.tipo_mapa) === "ga4 atual conforme").length,
+    ga4AtualIncompleto: results.filter(item => normalize(item.tipo_mapa) === "ga4 atual incompleto").length,
     ga4Legado: results.filter(item => normalize(item.tipo_mapa) === "ga4 legado").length,
     universalAnalytics: results.filter(item => normalize(item.tipo_mapa) === "universal analytics").length,
     mapas: results.filter(item => {
       const type = normalize(item.tipo_mapa);
-      return type === "ga4 atual" || type === "ga4 legado" || type === "universal analytics";
+      return type === "ga4 atual conforme" || type === "ga4 atual incompleto" || type === "ga4 legado" || type === "universal analytics";
     }).length,
     documentos: results.filter(item => {
       const type = normalize(item.tipo_mapa);
-      return type === "doc" || (type !== "ga4 atual" && type !== "ga4 legado" && type !== "universal analytics");
+      return type === "doc" || (type !== "ga4 atual conforme" && type !== "ga4 atual incompleto" && type !== "ga4 legado" && type !== "universal analytics");
     }).length,
   };
 
@@ -127,10 +128,11 @@ export function calculateInsights(results: Artifact[]) {
     .sort((a, b) => b.count - a.count);
 
   const distribTipos = [
-    { name: "GA4 Atual", count: counts.ga4Atual, percent: ((counts.ga4Atual / total) * 100).toFixed(1) },
+    { name: "GA4 Atual Conforme", count: counts.ga4AtualConforme, percent: ((counts.ga4AtualConforme / total) * 100).toFixed(1) },
+    { name: "GA4 Atual Incompleto", count: counts.ga4AtualIncompleto, percent: ((counts.ga4AtualIncompleto / total) * 100).toFixed(1) },
     { name: "GA4 Legado", count: counts.ga4Legado, percent: ((counts.ga4Legado / total) * 100).toFixed(1) },
     { name: "Universal Analytics", count: counts.universalAnalytics, percent: ((counts.universalAnalytics / total) * 100).toFixed(1) },
-    { name: "Documentação", count: counts.documentos, percent: ((counts.documentos / total) * 100).toFixed(1) },
+    { name: "Doc", count: counts.documentos, percent: ((counts.documentos / total) * 100).toFixed(1) },
   ].sort((a, b) => b.count - a.count);
 
   const now = new Date();
@@ -166,7 +168,7 @@ export function calculateInsights(results: Artifact[]) {
   // Deteção de Problemas (Orfãos, defasados e mal-estruturados)
   const semResponsavel = results.filter(i => !i.responsavel || i.responsavel === "-").length;
   const semSubproduto = results.filter(i => !i.subproduto || i.subproduto === "-").length;
-  const foraPadraoGA4 = results.filter(i => normalize(i.tipo_mapa) === "universal analytics" || normalize(i.tipo_mapa) === "ga4 legado").length;
+  const foraPadraoGA4 = results.filter(i => normalize(i.tipo_mapa) === "universal analytics" || normalize(i.tipo_mapa) === "ga4 legado" || normalize(i.tipo_mapa) === "ga4 atual incompleto").length;
   
   const desatualizados = results.filter(item => {
     const data = new Date(item.ultima_atualizacao);
@@ -179,16 +181,16 @@ export function calculateInsights(results: Artifact[]) {
   else if (totalProblemas / total > 0.1) nivelRisco = 'medio';
 
   // Aderência ao Padrão Tecnológico
-  const scoreAderencia = counts.mapas > 0 ? (counts.ga4Atual / counts.mapas) * 100 : 100;
+  const scoreAderencia = counts.mapas > 0 ? (counts.ga4AtualConforme / counts.mapas) * 100 : 100;
   let statusAderencia: 'excelente' | 'bom' | 'critico' = 'excelente';
-  let interpretacaoAderencia = "A base está 100% aderente ao padrão GA4 Atual";
+  let interpretacaoAderencia = "A base está 100% aderente ao padrão GA4 Atual Conforme";
 
   if (scoreAderencia < 100 && scoreAderencia >= 80) {
     statusAderencia = 'bom';
-    interpretacaoAderencia = `A base possui boa aderência (${scoreAderencia.toFixed(0)}%) ao padrão GA4 Atual, mas ainda há legados.`;
+    interpretacaoAderencia = `A base possui boa aderência (${scoreAderencia.toFixed(0)}%) ao padrão GA4 Atual Conforme, mas ainda há legados ou incompletos.`;
   } else if (scoreAderencia < 80) {
     statusAderencia = 'critico';
-    interpretacaoAderencia = "A base apresenta baixa aderência — risco de inconsistência.";
+    interpretacaoAderencia = "A base apresenta baixa aderência ao novo padrão — risco de inconsistência.";
   }
 
   // Resumo Executivo (Tom direto, focado em governança)
@@ -207,11 +209,11 @@ export function calculateInsights(results: Artifact[]) {
   }
 
   const recomendacoes: string[] = [];
-  if (foraPadraoGA4 > 0) recomendacoes.push("Migrar mapas legados e de Universal Analytics para o padrão GA4 Atual.");
+  if (foraPadraoGA4 > 0) recomendacoes.push("Migrar mapas legados e incompletos para o padrão GA4 Atual Conforme.");
   if (semResponsavel > 0) recomendacoes.push("Atribuir responsáveis aos artefatos sem gestão definda.");
   if (desatualizados > 0) recomendacoes.push("Revisar artefatos sem atualização recente.");
   
-  if (foraPadraoGA4 > 0) recomendacaoStr = "Acelerar a migração dos mapas restantes para o padrão GA4 Atual.";
+  if (foraPadraoGA4 > 0) recomendacaoStr = "Acelerar a migração dos mapas restantes para o padrão GA4 Atual Conforme.";
   else if (semResponsavel > 0) recomendacaoStr = "Definir propriedades de gestão e responsáveis pelos artefatos órfãos.";
   else if (desatualizados > 0) recomendacaoStr = "Auditar e atualizar artefatos anteriores a 2024.";
 
@@ -219,7 +221,8 @@ export function calculateInsights(results: Artifact[]) {
 
   return {
     total,
-    ga4Atual: counts.ga4Atual,
+    ga4AtualConforme: counts.ga4AtualConforme,
+    ga4AtualIncompleto: counts.ga4AtualIncompleto,
     ga4Legado: counts.ga4Legado,
     universalAnalytics: counts.universalAnalytics,
     mapas: counts.mapas,
@@ -228,7 +231,8 @@ export function calculateInsights(results: Artifact[]) {
     distribSubproduto,
     distribTipos,
     porcentagens: {
-      ga4Atual: ((counts.ga4Atual / total) * 100).toFixed(1),
+      ga4AtualConforme: ((counts.ga4AtualConforme / total) * 100).toFixed(1),
+      ga4AtualIncompleto: ((counts.ga4AtualIncompleto / total) * 100).toFixed(1),
       ga4Legado: ((counts.ga4Legado / total) * 100).toFixed(1),
       universalAnalytics: ((counts.universalAnalytics / total) * 100).toFixed(1),
       documentos: ((counts.documentos / total) * 100).toFixed(1),
@@ -281,8 +285,9 @@ export function searchArtifacts(queryRaw: string): any {
   
   // Identifica se a intenção do usuário envolve filtrar "fora" alguma coisa
   const isNegation = query.includes("nao seguem") || query.includes("nao e") || query.includes("sem") || query.includes("fora de");
-  const targetTerm = query.includes("ga4 atual") ? "ga4 atual" :
-                     query.includes("ga4") ? "ga4" :
+  const targetTerm = query.includes("ga4 atual conforme") ? "ga4 atual conforme" :
+                     query.includes("ga4 atual incompleto") ? "ga4 atual incompleto" :
+                     query.includes("ga4 legado") ? "ga4 legado" :
                      query.includes("universal analytics") ? "universal analytics" :
                      query.includes("doc") ? "doc" : "";
 
