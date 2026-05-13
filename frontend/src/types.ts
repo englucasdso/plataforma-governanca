@@ -21,9 +21,7 @@ export interface Artifact {
 
 export interface Insights {
   total: number;
-  ga4AtualConforme: number;
-  ga4AtualIncompleto: number;
-  ga4Legado: number;
+  ga4: number;
   universalAnalytics: number;
   mapas: number;
   documentos: number;
@@ -31,9 +29,7 @@ export interface Insights {
   distribSubproduto: { name: string; count: number; percent: string }[];
   distribTipos: { name: string; count: number; percent: string }[];
   porcentagens: {
-    ga4AtualConforme: string;
-    ga4AtualIncompleto: string;
-    ga4Legado: string;
+    ga4: string;
     universalAnalytics: string;
     documentos: string;
   };

@@ -229,66 +229,7 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
           has('data layer') ||
           (has('datalayer') && has('push'));
           
-        // 1. GA4 Atual Conforme
-        const temBaseGA4Conforme =
-          temDataLayerPush &&
-          has('event') &&
-          has('event_type') &&
-          has('product') &&
-          has('user') &&
-          has('debug') &&
-          has('gtm_id') &&
-          has('gtm_versao_container') &&
-          has('url_webview') &&
-          has('host_name_webview');
-          
-        const temPadraoEventData = 
-          has('event_data') &&
-          has('ga_event') &&
-          has('location') &&
-          has('action') &&
-          has('element_name');
-          
-        const temEventoGA4Conforme =
-          has('page_view') ||
-          has('screen_data') ||
-          temPadraoEventData;
-          
-        if (temBaseGA4Conforme && temEventoGA4Conforme) {
-          return 'GA4 Atual Conforme';
-        }
-        
-        // 2. GA4 Atual Incompleto
-        const temNovo = 
-          has('event_type') ||
-          has('product') ||
-          has('user') ||
-          has('debug');
-          
-        const temQualquerEvento = 
-          has('page_view') ||
-          has('event_data') ||
-          has('screen_data');
-          
-        if (temDataLayerPush && temNovo && temQualquerEvento) {
-          return 'GA4 Atual Incompleto';
-        }
-        
-        // 3. GA4 Legado
-        const temSinalLegado =
-          has('event_name') ||
-          has('eventname') ||
-          has('ga_event') ||
-          has('pageview') ||
-          has('page_view') ||
-          has('event_data') ||
-          has('screen_data');
-          
-        if (temDataLayerPush && temSinalLegado) {
-          return 'GA4 Legado';
-        }
-        
-        // 4. Universal Analytics
+        // 1. Universal Analytics
         const temUniversalSnake =
           has('event_category') &&
           has('event_action') &&
@@ -302,8 +243,25 @@ async function buildInventory(rootPageId, maxReqRows = null, username, password)
         if (temUniversalSnake || temUniversalCamel) {
           return 'Universal Analytics';
         }
+
+        // 2. GA4
+        const temSinalGA4 =
+          has('event_type') ||
+          has('eventtype') ||
+          has('event_name') ||
+          has('eventname') ||
+          has('ga_event') ||
+          has('event') ||
+          has('event_data') ||
+          has('screen_data') ||
+          has('page_view') ||
+          has('pageview');
+          
+        if (temDataLayerPush && temSinalGA4) {
+          return 'GA4';
+        }
         
-        // 5. Doc
+        // 3. Doc
         return 'Doc';
       }
 

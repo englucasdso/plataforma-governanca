@@ -26,17 +26,15 @@ export const getFilteredInsights = (subset: Artifact[], queryText: string): Insi
   if (total === 0) return null;
 
   const counts = {
-    ga4AtualConforme: subset.filter(item => normalizar(item.tipo_mapa) === "ga4 atual conforme").length,
-    ga4AtualIncompleto: subset.filter(item => normalizar(item.tipo_mapa) === "ga4 atual incompleto").length,
-    ga4Legado: subset.filter(item => normalizar(item.tipo_mapa) === "ga4 legado").length,
+    ga4: subset.filter(item => normalizar(item.tipo_mapa) === "ga4").length,
     universalAnalytics: subset.filter(item => normalizar(item.tipo_mapa) === "universal analytics").length,
     mapas: subset.filter(item => {
       const type = normalizar(item.tipo_mapa);
-      return type === "ga4 atual conforme" || type === "ga4 atual incompleto" || type === "ga4 legado" || type === "universal analytics";
+      return type === "ga4" || type === "universal analytics";
     }).length,
     documentos: subset.filter(item => {
       const type = normalizar(item.tipo_mapa);
-      return type === "doc" || (type !== "ga4 atual conforme" && type !== "ga4 atual incompleto" && type !== "ga4 legado" && type !== "universal analytics");
+      return type === "doc" || (type !== "ga4" && type !== "universal analytics");
     }).length,
   };
 
@@ -58,9 +56,7 @@ export const getFilteredInsights = (subset: Artifact[], queryText: string): Insi
     .sort((a,b) => b.count - a.count);
 
   const distribTipos = [
-    { name: "GA4 Atual Conforme", count: counts.ga4AtualConforme, percent: ((counts.ga4AtualConforme / total) * 100).toFixed(1) },
-    { name: "GA4 Atual Incompleto", count: counts.ga4AtualIncompleto, percent: ((counts.ga4AtualIncompleto / total) * 100).toFixed(1) },
-    { name: "GA4 Legado", count: counts.ga4Legado, percent: ((counts.ga4Legado / total) * 100).toFixed(1) },
+    { name: "GA4", count: counts.ga4, percent: ((counts.ga4 / total) * 100).toFixed(1) },
     { name: "Universal Analytics", count: counts.universalAnalytics, percent: ((counts.universalAnalytics / total) * 100).toFixed(1) },
     { name: "Doc", count: counts.documentos, percent: ((counts.documentos / total) * 100).toFixed(1) },
   ].sort((a, b) => b.count - a.count);
@@ -98,7 +94,7 @@ export const getFilteredInsights = (subset: Artifact[], queryText: string): Insi
   // Problemas Detectados
   const semResponsavel = subset.filter(i => !i.responsavel || i.responsavel === "-").length;
   const semSubproduto = subset.filter(i => !i.subproduto || i.subproduto === "-").length;
-  const foraPadraoGA4 = subset.filter(i => normalizar(i.tipo_mapa) === "ga4 legado" || normalizar(i.tipo_mapa) === "universal analytics" || normalizar(i.tipo_mapa) === "ga4 atual incompleto").length;
+  const foraPadraoGA4 = subset.filter(i => normalizar(i.tipo_mapa) === "universal analytics").length;
   
   // Consideramos desatualizado o que não foi atualizado em 2024 (exemplo hipotético)
   const desatualizados = subset.filter(item => {
@@ -112,13 +108,13 @@ export const getFilteredInsights = (subset: Artifact[], queryText: string): Insi
   else if (totalProblemas / total > 0.1) nivelRisco = 'medio';
 
   // Aderência ao Padrão
-  const scoreAderencia = counts.mapas > 0 ? (counts.ga4AtualConforme / counts.mapas) * 100 : 100;
+  const scoreAderencia = counts.mapas > 0 ? (counts.ga4 / counts.mapas) * 100 : 100;
   let statusAderencia: 'excelente' | 'bom' | 'critico' = 'excelente';
-  let interpretacaoAderencia = "A base está 100% aderente ao padrão GA4 Atual Conforme";
+  let interpretacaoAderencia = "A base está 100% aderente ao padrão GA4";
 
   if (scoreAderencia < 100 && scoreAderencia >= 80) {
     statusAderencia = 'bom';
-    interpretacaoAderencia = `A base possui boa aderência (${scoreAderencia.toFixed(0)}%) ao padrão GA4 Atual Conforme, mas ainda há legados ou incompletos.`;
+    interpretacaoAderencia = `A base possui boa aderência (${scoreAderencia.toFixed(0)}%) ao padrão GA4.`;
   } else if (scoreAderencia < 80) {
     statusAderencia = 'critico';
     interpretacaoAderencia = "A base apresenta baixa aderência ao novo padrão — risco de inconsistência e perda de dados legacy.";
@@ -141,9 +137,7 @@ Impacto em Mensuração: Alto risco de perda de volume de conversão no produto 
 
   return {
     total,
-    ga4AtualConforme: counts.ga4AtualConforme,
-    ga4AtualIncompleto: counts.ga4AtualIncompleto,
-    ga4Legado: counts.ga4Legado,
+    ga4: counts.ga4,
     universalAnalytics: counts.universalAnalytics,
     mapas: counts.mapas,
     documentos: counts.documentos,
@@ -151,9 +145,7 @@ Impacto em Mensuração: Alto risco de perda de volume de conversão no produto 
     distribSubproduto,
     distribTipos,
     porcentagens: {
-      ga4AtualConforme: ((counts.ga4AtualConforme / total) * 100).toFixed(1),
-      ga4AtualIncompleto: ((counts.ga4AtualIncompleto / total) * 100).toFixed(1),
-      ga4Legado: ((counts.ga4Legado / total) * 100).toFixed(1),
+      ga4: ((counts.ga4 / total) * 100).toFixed(1),
       universalAnalytics: ((counts.universalAnalytics / total) * 100).toFixed(1),
       documentos: ((counts.documentos / total) * 100).toFixed(1),
     },
