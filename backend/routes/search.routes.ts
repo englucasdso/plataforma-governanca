@@ -6,7 +6,7 @@
  */
 import { Router } from "express";
 import { getInventoryData, calculateInsights, searchArtifacts } from "../services/inventory.service.js";
-import { runCollection, abortCollection } from "../integrations/confluenceClient.js";
+import { runCollection, abortCollection } from "../confluenceClient.js";
 // ai.service.ts import and route have been moved to frontend
 
 import { generateInsightsAnalysis } from "../services/ai.service.js";

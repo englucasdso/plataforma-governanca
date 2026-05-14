@@ -7,9 +7,9 @@
     "node": ">=18.17.0"
   },
   "scripts": {
-    "dev": "tsx backend/src/index.ts",
+    "dev": "tsx backend/index.ts",
     "build": "vite build",
-    "start": "tsx backend/src/index.ts",
+    "start": "tsx backend/index.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
