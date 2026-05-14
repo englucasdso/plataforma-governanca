@@ -7,7 +7,7 @@ const router = Router();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const usersFilePath = path.join(__dirname, "..", "data", "users.json");
+const usersFilePath = path.join(process.cwd(), "backend", "data", "users.json");
 
 export type UserRole =
   | "admin"

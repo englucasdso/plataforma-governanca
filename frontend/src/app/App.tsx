@@ -903,8 +903,13 @@ export default function App() {
   useEffect(() => {
     // Session check
     const savedUser = localStorage.getItem('cortex_current_user');
-    if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
+    if (savedUser && savedUser !== 'undefined' && savedUser !== 'null') {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error("Invalid user in localStorage", e);
+        localStorage.removeItem('cortex_current_user');
+      }
     }
 
     // Connect to Users API

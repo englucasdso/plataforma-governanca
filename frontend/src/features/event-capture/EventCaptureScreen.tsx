@@ -35,7 +35,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
               return JSON.parse(text);
           } catch (e) {
               console.error("Invalid JSON from /api/ga4/status:", text.substring(0, 200));
-              throw e;
+              return { connected: false, message: "Erro ao conectar" };
           }
       })
       .then(data => setGa4Status(data))
@@ -51,7 +51,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 return JSON.parse(text);
             } catch (e) {
                 console.error("Invalid JSON from /api/ga4/events:", text.substring(0, 200));
-                throw e;
+                return { accounts: [] };
             }
         })
         .then(data => {
@@ -90,7 +90,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                           return JSON.parse(text);
                       } catch (e) {
                           console.error("Invalid JSON from sync/status:", text.substring(0, 200));
-                          throw e;
+                          return { status: "error", errorMsg: "Invalid JSON response" };
                       }
                   })
                   .then(data => {

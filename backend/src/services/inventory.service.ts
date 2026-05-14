@@ -78,7 +78,7 @@ export function levenshtein(a: string, b: string): number {
  * Retorna os dados prontos para o uso em formato de lista (Array de Artifact)
  */
 export function getInventoryData(): Artifact[] {
-  const dataPath = path.join(__dirname, "..", "data", "inventario.json");
+  const dataPath = path.join(process.cwd(), "backend", "data", "inventario.json");
   const data = fs.readFileSync(dataPath, "utf8");
   let parsed = JSON.parse(data) as Artifact[];
   // Fix data

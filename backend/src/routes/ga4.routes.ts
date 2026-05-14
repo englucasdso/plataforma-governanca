@@ -8,8 +8,8 @@ const execFileAsync = promisify(execFile);
 const router = express.Router();
 
 let syncJob = { active: false, step: 0, status: "idle", errorMsg: "" };
-const SA_FILE_PATH = path.join(process.cwd(), "backend", "src", "secrets", "ga4-service-account.json");
-const DATA_FILE_PATH = path.join(process.cwd(), "backend", "src", "data", "ga4-events.json");
+const SA_FILE_PATH = path.join(process.cwd(), "backend", "secrets", "ga4-service-account.json");
+const DATA_FILE_PATH = path.join(process.cwd(), "backend", "data", "ga4-events.json");
 const PYTHON_SCRIPT_PATH = path.join(process.cwd(), "backend", "src", "integrations", "sync_ga4.py");
 const PYTHON_EXE = "C:\\Users\\i462913\\AppData\\Local\\Programs\\Python\\Python313\\python.exe";
 
