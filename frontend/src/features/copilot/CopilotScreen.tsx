@@ -58,10 +58,10 @@ export function CopilotScreen({ userName, role, onNavigate, onGenerateSummary }:
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh]">
       <div className="text-center mb-10 min-h-[120px] flex flex-col items-center justify-center">
-        <h2 className="text-4xl font-light text-gray-500 tracking-tight leading-tight mb-2">
+        <h2 className="text-4xl font-light text-gray-500 dark:text-slate-400 tracking-tight leading-tight mb-2">
           <AnimatedText text={`Olá, ${userName}.`} hasTypedBefore={hasSeenTyping} />
         </h2>
-        <h3 className="text-4xl font-medium text-gray-900 tracking-tight leading-tight">
+        <h3 className="text-4xl font-medium text-gray-900 dark:text-slate-50 tracking-tight leading-tight">
           <AnimatedText 
             text="Qual pilar de governança deseja analisar hoje?" 
             delay={100} 
@@ -97,10 +97,10 @@ export function CopilotScreen({ userName, role, onNavigate, onGenerateSummary }:
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onNavigate("home")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 font-medium text-sm transition-all group"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:border-slate-800 hover:bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-slate-300 font-medium text-sm transition-all group"
               >
-                <LayoutList className="w-4 h-4 text-gray-400 group-hover:text-gray-700 transition-colors" />
-                Visão estratégica
+                <LayoutList className="w-4 h-4 text-gray-400 dark:text-slate-500 group-hover:text-gray-700 dark:text-slate-300 transition-colors" />
+                Overview
               </motion.button>
             )}
 
@@ -113,10 +113,10 @@ export function CopilotScreen({ userName, role, onNavigate, onGenerateSummary }:
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onNavigate("initial")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 font-medium text-sm transition-all group"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:border-slate-800 hover:bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-slate-300 font-medium text-sm transition-all group"
               >
-                <Search className="w-4 h-4 text-gray-400 group-hover:text-gray-700 transition-colors" />
-                Explorar Artefatos
+                <Search className="w-4 h-4 text-gray-400 dark:text-slate-500 group-hover:text-gray-700 dark:text-slate-300 transition-colors" />
+                Hub de Artefatos
               </motion.button>
             )}
 
@@ -129,10 +129,10 @@ export function CopilotScreen({ userName, role, onNavigate, onGenerateSummary }:
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onNavigate("events_capture")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 font-medium text-sm transition-all group"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 dark:border-slate-800 hover:bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-slate-300 font-medium text-sm transition-all group"
               >
-                <Activity className="w-4 h-4 text-gray-400 group-hover:text-gray-700 transition-colors" />
-                Consultar Eventos
+                <Activity className="w-4 h-4 text-gray-400 dark:text-slate-500 group-hover:text-gray-700 dark:text-slate-300 transition-colors" />
+                Hub de Eventos
               </motion.button>
             )}
 
@@ -145,10 +145,10 @@ export function CopilotScreen({ userName, role, onNavigate, onGenerateSummary }:
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onGenerateSummary}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-900 bg-gray-900 text-white hover:bg-gray-800 font-medium text-sm transition-all group"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-900 bg-gray-900 dark:bg-slate-50 text-white hover:bg-gray-800 font-medium text-sm transition-all group"
               >
-                <FileText className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                Gerar Resumo Executivo
+                <FileText className="w-4 h-4 text-gray-400 dark:text-slate-500 group-hover:text-white transition-colors" />
+                Resumo Executivo
               </motion.button>
             )}
           </motion.div>

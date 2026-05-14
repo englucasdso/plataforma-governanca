@@ -6,12 +6,27 @@
  */
 import { Router } from "express";
 import { getInventoryData, calculateInsights, searchArtifacts } from "../services/inventory.service.js";
-import { runCollection, abortCollection } from "../confluenceClient.js";
+import { runCollection, abortCollection } from "../integrations/confluenceClient.js";
 // ai.service.ts import and route have been moved to frontend
 
 import { generateInsightsAnalysis } from "../services/ai.service.js";
+import { generateExecutiveSummary } from "../services/executiveSummary.service.js";
 
 const router = Router();
+
+router.post("/insights/executive-summary", async (req, res) => {
+  try {
+    const { artifacts, term, context } = req.body;
+    if (!artifacts) {
+      return res.status(400).json({ error: "No artifacts sent" });
+    }
+    const summary = await generateExecutiveSummary(artifacts, { term, context });
+    res.json(summary);
+  } catch (error: any) {
+    console.error(`[API] Erro no Resumo Executivo:`, error);
+    res.status(500).json({ error: error.message || "Erro ao gerar resumo executivo" });
+  }
+});
 
 router.post("/insights/artifacts", async (req, res) => {
   try {

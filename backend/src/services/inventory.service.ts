@@ -80,7 +80,21 @@ export function levenshtein(a: string, b: string): number {
 export function getInventoryData(): Artifact[] {
   const dataPath = path.join(__dirname, "..", "data", "inventario.json");
   const data = fs.readFileSync(dataPath, "utf8");
-  return JSON.parse(data);
+  let parsed = JSON.parse(data) as Artifact[];
+  // Fix data
+  parsed = parsed.map((item) => {
+    let t = item.tipo_mapa || "";
+    const lower = t.toLowerCase();
+    if (lower.includes("ga4")) {
+      t = "GA4";
+    } else if (lower.includes("universal analytics") || lower.includes("ua")) {
+      t = "Universal Analytics";
+    } else {
+      t = "Doc";
+    }
+    return { ...item, tipo_mapa: t };
+  });
+  return parsed;
 }
 
 /**

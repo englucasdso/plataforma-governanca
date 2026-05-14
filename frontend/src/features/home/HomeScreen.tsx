@@ -87,7 +87,7 @@ export function HomeScreen({ userName, fullInventory = [], onNavigate, onGenerat
         <motion.h2 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl font-normal text-gray-900 tracking-tight leading-tight"
+          className="text-4xl font-normal text-gray-900 dark:text-slate-50 tracking-tight leading-tight"
         >
           <TypewriterText text="O que você deseja analisar hoje?" />
         </motion.h2>
@@ -101,14 +101,14 @@ export function HomeScreen({ userName, fullInventory = [], onNavigate, onGenerat
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + idx * 0.05 }}
-            className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-slate-900 dark:border-slate-800 p-4 rounded-2xl border border-gray-200 dark:border-slate-600 shadow-sm dark:shadow-none flex items-center gap-4 hover:shadow-md dark:shadow-none transition-shadow"
           >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${ind.bg} ${ind.color}`}>
               {ind.icon}
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-0.5">{ind.label}</p>
-              <p className="text-2xl font-normal text-gray-900">{ind.value}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-0.5">{ind.label}</p>
+              <p className="text-2xl font-normal text-gray-900 dark:text-slate-50">{ind.value}</p>
             </div>
           </motion.div>
         ))}
@@ -126,17 +126,17 @@ export function HomeScreen({ userName, fullInventory = [], onNavigate, onGenerat
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 + idx * 0.02 }}
                 onClick={() => setSelectedProduct(prod)}
-                className={`cursor-pointer bg-white p-4 rounded-xl border transition-all duration-300 relative overflow-hidden group ${
+                className={`cursor-pointer bg-white dark:bg-slate-900 dark:border-slate-800 p-4 rounded-xl border transition-all duration-300 relative overflow-hidden group ${
                   isSelected 
-                    ? 'border-red-500 shadow-md ring-1 ring-red-500/20' 
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? 'border-red-500 shadow-md dark:shadow-none ring-1 ring-red-500/20' 
+                    : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 hover:bg-gray-50 dark:bg-slate-800'
                 }`}
               >
                 <div className="flex justify-between items-start mb-3">
-                  <h4 className={`text-sm font-bold tracking-tight pr-2 line-clamp-1 ${isSelected ? 'text-red-600' : 'text-gray-800'}`}>
+                  <h4 className={`text-sm font-bold tracking-tight pr-2 line-clamp-1 ${isSelected ? 'text-red-600' : 'text-gray-800 dark:text-slate-200'}`}>
                     {prod.name}
                   </h4>
-                  <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-transparent group-hover:bg-gray-100 transition-colors">
+                  <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-transparent group-hover:bg-gray-100 dark:bg-slate-700 transition-colors">
                     {prod.status === 'saudável' && <CheckCircle2 className="w-3 h-3 text-green-500" />}
                     {prod.status === 'atenção' && <AlertTriangle className="w-3 h-3 text-yellow-500" />}
                     {prod.status === 'crítico' && <AlertCircle className="w-3 h-3 text-red-500" />}
@@ -146,10 +146,10 @@ export function HomeScreen({ userName, fullInventory = [], onNavigate, onGenerat
                 <div className="space-y-3">
                   <div>
                     <div className="flex justify-between text-[10px] font-bold mb-1">
-                      <span className="text-gray-500 uppercase tracking-widest">Cobertura</span>
-                      <span className={isSelected ? 'text-red-500' : 'text-gray-700'}>{prod.coverage}%</span>
+                      <span className="text-gray-500 dark:text-slate-400 uppercase tracking-widest">Cobertura</span>
+                      <span className={isSelected ? 'text-red-500' : 'text-gray-700 dark:text-slate-300'}>{prod.coverage}%</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
+                    <div className="w-full bg-gray-100 dark:bg-slate-700 rounded-full h-1 overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${
                           prod.coverage >= 80 ? 'bg-green-500' : prod.coverage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
@@ -159,17 +159,17 @@ export function HomeScreen({ userName, fullInventory = [], onNavigate, onGenerat
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-50 dark:border-slate-800">
                     <div className="text-center">
-                      <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Map</p>
-                      <p className="text-xs font-black text-gray-800">{prod.mappedEvents}</p>
+                      <p className="text-[9px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Map</p>
+                      <p className="text-xs font-black text-gray-800 dark:text-slate-200">{prod.mappedEvents}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Órfão</p>
+                      <p className="text-[9px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Órfão</p>
                       <p className="text-xs font-black text-orange-500">{prod.orphanEvents}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Gap</p>
+                      <p className="text-[9px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Gap</p>
                       <p className="text-xs font-black text-red-500">{prod.gaps}</p>
                     </div>
                   </div>
@@ -188,40 +188,40 @@ export function HomeScreen({ userName, fullInventory = [], onNavigate, onGenerat
             exit={{ opacity: 0, x: -20 }}
             className="w-full lg:w-[400px] shrink-0 sticky top-8"
           >
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm relative overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 dark:border-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-600 shadow-sm dark:shadow-none relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-50/50 to-transparent rounded-bl-full opacity-50 z-0"></div>
               
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-slate-800 flex items-center justify-center">
                     <Target className={`w-6 h-6 ${
                       selectedProduct.status === 'saudável' ? 'text-green-500' : 
                       selectedProduct.status === 'atenção' ? 'text-yellow-500' : 'text-red-500'
                     }`} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest leading-tight">Resumo do Produto</p>
-                    <h3 className="text-2xl font-black text-gray-900 tracking-tight">{selectedProduct.name}</h3>
+                    <p className="text-[10px] font-black uppercase text-gray-400 dark:text-slate-500 tracking-widest leading-tight">Resumo do Produto</p>
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-slate-50 tracking-tight">{selectedProduct.name}</h3>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-8">
-                  <div className="bg-gray-50 rounded-2xl p-4">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Status</p>
-                    <p className="text-sm font-black text-gray-900 capitalize">{selectedProduct.status}</p>
+                  <div className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-4">
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1">Status</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-slate-50 capitalize">{selectedProduct.status}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-2xl p-4">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Cobertura</p>
-                    <p className="text-sm font-black text-gray-900">{selectedProduct.coverage}%</p>
+                  <div className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-4">
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1">Cobertura</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-slate-50">{selectedProduct.coverage}%</p>
                   </div>
                 </div>
 
                 <div className="space-y-4 mb-8">
-                  <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest pl-1">Principais Alertas</h4>
+                  <h4 className="text-xs font-black text-gray-900 dark:text-slate-50 uppercase tracking-widest pl-1">Principais Alertas</h4>
                   
                   {selectedProduct.journeys === 0 ? (
-                    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex gap-3 text-gray-500">
-                      <AlertCircle className="w-5 h-5 shrink-0 text-gray-400 mt-0.5" />
+                    <div className="bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl p-4 flex gap-3 text-gray-500 dark:text-slate-400">
+                      <AlertCircle className="w-5 h-5 shrink-0 text-gray-400 dark:text-slate-500 mt-0.5" />
                       <div>
                         <p className="text-sm font-bold">Produto sem rastreamento</p>
                         <p className="text-xs mt-1 opacity-80 font-medium">Nenhuma jornada foi encontrada no inventário.</p>
@@ -262,17 +262,17 @@ export function HomeScreen({ userName, fullInventory = [], onNavigate, onGenerat
                   )}
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-gray-50">
+                <div className="space-y-3 pt-4 border-t border-gray-50 dark:border-slate-800">
                   {onGenerateSummary && (
                     <button 
                       onClick={onGenerateSummary}
-                      className="w-full bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-500 hover:text-gray-900 rounded-xl py-3 px-4 flex items-center justify-center transition-all group"
+                      className="w-full bg-white dark:bg-slate-900 dark:border-slate-800 border border-gray-200 dark:border-slate-600 hover:border-gray-300 hover:bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:text-slate-50 rounded-xl py-3 px-4 flex items-center justify-center transition-all group"
                     >
                       <div className="flex items-center gap-2">
                          <div className="relative flex items-center justify-center">
                            <Sparkles className="w-4 h-4" />
                          </div>
-                        <span className="font-bold text-xs tracking-wide">Gerar resumo executivo</span>
+                        <span className="font-bold text-xs tracking-wide">Resumo Executivo</span>
                       </div>
                     </button>
                   )}

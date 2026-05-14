@@ -7,7 +7,7 @@
  */
 
 import 'dotenv/config';
-
+console.log('DEV SERVER GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Present' : 'Undefined');
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
@@ -23,8 +23,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000; // A porta oficial onde o serviço ficará disponível
 
-  // Permite que o servidor entenda dados enviados no formato JSON
-  app.use(express.json());
+  // Permite que o servidor entenda dados enviados no formato JSON (aumentado para evitar PayloadTooLargeError)
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // Roteamento da API (Backend)
   // Tudo que começar com "/api" será repassado para as lógicas de busca 

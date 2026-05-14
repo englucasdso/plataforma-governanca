@@ -8,9 +8,9 @@ const execFileAsync = promisify(execFile);
 const router = express.Router();
 
 let syncJob = { active: false, step: 0, status: "idle", errorMsg: "" };
-const SA_FILE_PATH = path.join(process.cwd(), "backend", "secrets", "ga4-service-account.json");
-const DATA_FILE_PATH = path.join(process.cwd(), "backend", "data", "ga4-events.json");
-const PYTHON_SCRIPT_PATH = path.join(process.cwd(), "backend", "scripts", "sync_ga4.py");
+const SA_FILE_PATH = path.join(process.cwd(), "backend", "src", "secrets", "ga4-service-account.json");
+const DATA_FILE_PATH = path.join(process.cwd(), "backend", "src", "data", "ga4-events.json");
+const PYTHON_SCRIPT_PATH = path.join(process.cwd(), "backend", "src", "integrations", "sync_ga4.py");
 const PYTHON_EXE = "C:\\Users\\i462913\\AppData\\Local\\Programs\\Python\\Python313\\python.exe";
 
 async function executeSync() {
@@ -79,7 +79,7 @@ router.get("/ga4/sync/status", (req, res) => {
 });
 
 router.get("/ga4/saved", (req, res) => {
-   const filepath = path.join(process.cwd(), "backend", "data", "ga4-events.json");
+   const filepath = DATA_FILE_PATH;
    if (fs.existsSync(filepath)) {
       res.json(JSON.parse(fs.readFileSync(filepath, "utf8")));
    } else {
@@ -88,7 +88,7 @@ router.get("/ga4/saved", (req, res) => {
 });
 
 function getSavedData() {
-    const filepath = path.join(process.cwd(), "backend", "data", "ga4-events.json");
+    const filepath = DATA_FILE_PATH;
     if (fs.existsSync(filepath)) {
         return JSON.parse(fs.readFileSync(filepath, "utf8"));
     }

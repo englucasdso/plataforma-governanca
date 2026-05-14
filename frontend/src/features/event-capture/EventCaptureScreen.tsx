@@ -185,9 +185,9 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
               initial={{ opacity: 0, y: 50, scale: 0.9 }} 
               animate={{ opacity: 1, y: 0, scale: 1 }} 
               exit={{ opacity: 0, y: 50, scale: 0.9 }}
-              className="fixed bottom-6 right-6 z-[100] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-80 flex flex-col gap-3 overflow-hidden"
+              className="fixed bottom-6 right-6 z-[100] bg-white dark:bg-slate-900 dark:border-slate-800 rounded-2xl shadow-2xl dark:shadow-none border border-gray-100 dark:border-slate-700 p-4 w-80 flex flex-col gap-3 overflow-hidden"
             >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gray-100 dark:bg-slate-700">
                 <div 
                   className={`h-full transition-all duration-500 ease-out ${syncJob.status === 'error' ? 'bg-red-500' : syncJob.status === 'success' ? 'bg-green-500' : 'bg-bradesco-red'}`} 
                   style={{ width: `${Math.min(100, Math.round((syncJob.step / 4) * 100))}%` }}
@@ -196,16 +196,16 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
               
               <div className="flex items-start justify-between mt-1">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
                      {syncJob.status === "running" && <Loader2 className="w-5 h-5 text-bradesco-red animate-spin" />}
                      {syncJob.status === "success" && <CheckCircle2 className="w-5 h-5 text-green-500" />}
                      {syncJob.status === "error" && <AlertTriangle className="w-5 h-5 text-red-500" />}
                   </div>
                   <div className="flex flex-col flex-1">
-                    <span className="font-bold text-gray-900 text-sm">
+                    <span className="font-bold text-gray-900 dark:text-slate-50 text-sm">
                       {syncJob.status === "running" ? "Sincronizando..." : syncJob.status === "success" ? "Concluído" : "Falha na Sincronização"}
                     </span>
-                    <span className="text-xs font-medium text-gray-500 mt-0.5">
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 mt-0.5">
                       {syncJob.status === "error" 
                         ? "Erro no processo"
                         : ["Preparando...", "Autenticando via Service Account...", "Buscando accounts e properties via API...", "Salvando eventos localmente...", "Sincronização concluída!"][syncJob.step]}
@@ -215,7 +215,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 {syncJob.status !== 'running' && (
                   <button onClick={() => {
                         setSyncJob(s => ({ ...s, active: false }));
-                  }} className="text-gray-400 hover:text-gray-600 ml-2 bg-gray-100/50 hover:bg-gray-100 p-1.5 rounded-full transition-colors">
+                  }} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300 ml-2 bg-gray-100 dark:bg-slate-700/50 hover:bg-gray-100 dark:bg-slate-700 p-1.5 rounded-full transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -232,7 +232,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
       <div className={`flex flex-col mb-12 ${selectedPlatform ? '' : 'items-center text-center'}`}>
         <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
-            <h2 className={`text-4xl font-normal text-gray-900 tracking-tight flex items-center gap-3 ${selectedPlatform ? 'mt-2' : ''}`}>
+            <h2 className={`text-4xl font-normal text-gray-900 dark:text-slate-50 tracking-tight flex items-center gap-3 ${selectedPlatform ? 'mt-2' : ''}`}>
                 {selectedPlatform ? `Eventos em: ${selectedPlatform}` : <TypewriterText text="Qual fonte de eventos você deseja explorar?" />}
             </h2>
             </div>
@@ -241,7 +241,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 <div className="flex gap-3">
                     <button 
                         onClick={() => handleStartSync()}
-                        className="flex items-center gap-2 px-6 py-3 bg-bradesco-red text-white rounded-full font-bold text-sm tracking-wide hover:bg-black transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 whitespace-nowrap"
+                        className="flex items-center gap-2 px-6 py-3 bg-bradesco-red text-white rounded-full font-bold text-sm tracking-wide hover:bg-black transition-all shadow-md dark:shadow-none hover:shadow-xl dark:shadow-none hover:-translate-y-0.5 whitespace-nowrap"
                     >
                         Sincronizar GA4
                     </button>
@@ -252,11 +252,11 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
         {selectedPlatform && selectedPlatform !== "GA4" && (
           <div className="flex gap-4 mt-6">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
               <input 
                 type="text" 
                 placeholder="Buscar evento..." 
-                className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium w-64 focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all"
+                className="pl-10 pr-4 py-2 bg-white dark:bg-slate-900 dark:border-slate-800 border border-gray-200 dark:border-slate-600 rounded-full text-sm font-medium w-64 focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-all"
               />
             </div>
           </div>
@@ -271,23 +271,23 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                      onSelectPlatform("GA4");
                  }
               }}
-              className={`p-5 rounded-[24px] border ${ga4Status?.connected ? 'border-gray-100 cursor-pointer hover:border-gray-300 hover:shadow-md' : 'border-red-100 cursor-not-allowed opacity-70'} bg-white transition-all text-left flex flex-col items-start gap-3 relative overflow-hidden group min-w-[200px] max-w-[300px]`}
+              className={`p-5 rounded-[24px] border ${ga4Status?.connected ? 'border-gray-100 dark:border-slate-700 cursor-pointer hover:border-gray-300 hover:shadow-md dark:shadow-none' : 'border-red-100 cursor-not-allowed opacity-70'} bg-white dark:bg-slate-900 dark:border-slate-800 transition-all text-left flex flex-col items-start gap-3 relative overflow-hidden group min-w-[200px] max-w-[300px]`}
               title={ga4Status?.connected ? "Conectado via Service Account" : "Não configurado"}
           >
               <div className="flex flex-col gap-3 w-full">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 overflow-hidden p-2">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 dark:bg-slate-800 overflow-hidden p-2">
                         <img src="https://cdn.simpleicons.org/googleanalytics/E37400" alt="GA4" className="w-full h-full object-contain" />
                     </div>
                     <div>
-                        <span className="font-bold text-gray-900 transition-colors">
+                        <span className="font-bold text-gray-900 dark:text-slate-50 transition-colors">
                         GA4
                         </span>
                         <div className="flex items-center gap-1.5 mt-0.5">
                         {ga4Status?.connected ? (
                             <>
                             <CheckCircle2 className="w-3 h-3 text-green-500" />
-                            <span className="text-[10px] text-gray-400 capitalize whitespace-nowrap">Conectado (Service Account)</span>
+                            <span className="text-[10px] text-gray-400 dark:text-slate-500 capitalize whitespace-nowrap">Conectado (Service Account)</span>
                             </>
                         ) : (
                             <>
@@ -309,18 +309,18 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
             <button
               key={platform.name}
               onClick={() => onSelectPlatform(platform.name === 'GTM' ? null : platform.name)}
-              className={`p-5 rounded-[24px] border border-gray-100 bg-white hover:border-gray-300 hover:shadow-md transition-all text-left flex flex-col items-start gap-3 relative overflow-hidden group min-w-[200px]`}
+              className={`p-5 rounded-[24px] border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 dark:border-slate-800 hover:border-gray-300 hover:shadow-md dark:shadow-none transition-all text-left flex flex-col items-start gap-3 relative overflow-hidden group min-w-[200px]`}
             >
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 overflow-hidden p-2`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 dark:bg-slate-800 overflow-hidden p-2`}>
                   {platform.logoUrl ? (
                     <img src={platform.logoUrl} alt={platform.name} className="w-full h-full object-contain" />
                   ) : (
-                    <span className="font-bold text-gray-400">{platform.name.charAt(0)}</span>
+                    <span className="font-bold text-gray-400 dark:text-slate-500">{platform.name.charAt(0)}</span>
                   )}
                 </div>
                 <div>
-                  <span className={`font-bold text-gray-900 group-hover:text-purple-600 transition-colors`}>
+                  <span className={`font-bold text-gray-900 dark:text-slate-50 group-hover:text-purple-600 transition-colors`}>
                     {platform.name}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5">
@@ -329,28 +329,28 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                     ) : (
                       <AlertTriangle className={`w-3 h-3 text-yellow-500`} />
                     )}
-                    <span className="text-[10px] text-gray-400 capitalize">{platform.status}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-slate-500 capitalize">{platform.status}</span>
                   </div>
                 </div>
               </div>
               <div className="mt-2 w-full flex justify-between items-end">
                 <div>
-                  <p className="text-2xl font-black text-gray-900 leading-none mb-1">{platform.events}</p>
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Eventos</p>
+                  <p className="text-2xl font-black text-gray-900 dark:text-slate-50 leading-none mb-1">{platform.events}</p>
+                  <p className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest">Eventos</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-300 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                <ArrowRight className="w-4 h-4 text-gray-300 dark:text-slate-600 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
               </div>
             </button>
           ))}
         </div>
       ) : (
-        <div className="glass-card rounded-[32px] border border-gray-100 overflow-hidden bg-white shadow-sm">
-          <div className="overflow-x-auto border-b border-gray-50">
-            <div className="flex flex-col gap-4 px-8 py-4 bg-gray-50/50">
+        <div className="glass-card rounded-[32px] border border-gray-100 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 dark:border-slate-800 shadow-sm dark:shadow-none">
+          <div className="overflow-x-auto border-b border-gray-50 dark:border-slate-800">
+            <div className="flex flex-col gap-4 px-8 py-4 bg-gray-50 dark:bg-slate-800/50">
               <div className="flex items-center justify-between">
                 <button 
                   onClick={() => onSelectPlatform(null)}
-                  className="flex items-center gap-2 text-xs font-black text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-widest"
+                  className="flex items-center gap-2 text-xs font-black text-gray-400 dark:text-slate-500 hover:text-gray-900 dark:text-slate-50 transition-colors uppercase tracking-widest"
                 >
                   <ChevronLeft className="w-4 h-4" /> Voltar
                 </button>
@@ -359,7 +359,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
               {selectedPlatform === "GA4" && (
                   <div className="flex items-center gap-4">
                       <select 
-                          className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-purple-200 transition-all min-w-[200px]"
+                          className="bg-white dark:bg-slate-900 dark:border-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-50 focus:outline-none focus:ring-1 focus:ring-purple-200 transition-all min-w-[200px]"
                           value={selectedAccountFilter}
                           onChange={(e) => {
                               setSelectedAccountFilter(e.target.value);
@@ -373,7 +373,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                       </select>
                       
                       <select 
-                          className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-purple-200 transition-all min-w-[200px]"
+                          className="bg-white dark:bg-slate-900 dark:border-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-50 focus:outline-none focus:ring-1 focus:ring-purple-200 transition-all min-w-[200px]"
                           value={selectedPropertyFilter}
                           onChange={(e) => setSelectedPropertyFilter(e.target.value)}
                           disabled={!selectedAccountFilter && availableProperties.length > 50} // Optional disabled check
@@ -386,7 +386,7 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
 
                       <button 
                           onClick={loadSavedEvents}
-                          className="flex items-center gap-2 px-6 py-2 bg-gray-900 text-white rounded-lg font-bold text-sm tracking-wide hover:bg-gray-800 transition-all shadow-sm whitespace-nowrap ml-4"
+                          className="flex items-center gap-2 px-6 py-2 bg-gray-900 dark:bg-slate-50 text-white rounded-lg font-bold text-sm tracking-wide hover:bg-gray-800 transition-all shadow-sm dark:shadow-none whitespace-nowrap ml-4"
                       >
                           <Search className="w-4 h-4" /> Buscar eventos
                       </button>
@@ -395,36 +395,36 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
             </div>
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-gray-50 bg-gray-50/50">
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Nome do Evento</th>
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Plataforma</th>
+                <tr className="border-b border-gray-50 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50">
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-slate-500">Nome do Evento</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-slate-500">Plataforma</th>
                   {selectedPlatform === "GA4" && (
-                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Tipo</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-slate-500">Tipo</th>
                   )}
-                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-slate-500">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loadingInitial ? (
                   <tr>
-                    <td colSpan={selectedPlatform === "GA4" ? 4 : 3} className="px-8 py-10 text-center text-gray-500 flex flex-col items-center">
+                    <td colSpan={selectedPlatform === "GA4" ? 4 : 3} className="px-8 py-10 text-center text-gray-500 dark:text-slate-400 flex flex-col items-center">
                         <Loader2 className="w-8 h-8 text-purple-600 animate-spin mb-3" />
-                        <p className="font-semibold text-gray-900">Carregando dados salvos...</p>
+                        <p className="font-semibold text-gray-900 dark:text-slate-50">Carregando dados salvos...</p>
                     </td>
                   </tr>
                 ) : filteredEvents.map((evt: any) => (
-                  <tr key={evt.id} className="hover:bg-gray-50/50 transition-colors group">
+                  <tr key={evt.id} className="hover:bg-gray-50 dark:bg-slate-800/50 transition-colors group">
                     <td className="px-8 py-5">
-                      <span className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">{evt.name}</span>
+                      <span className="font-bold text-gray-900 dark:text-slate-50 group-hover:text-purple-600 transition-colors">{evt.name}</span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="px-3 py-1 bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-wider rounded-lg">
+                      <span className="px-3 py-1 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 font-black text-[10px] uppercase tracking-wider rounded-lg">
                         {evt.platform}
                       </span>
                     </td>
                     {selectedPlatform === "GA4" && (
                         <td className="px-8 py-5">
-                            <span className="px-3 py-1 bg-gray-50 text-gray-500 font-bold text-[10px] uppercase tracking-widest rounded-lg">{evt.eventType || "-"}</span>
+                            <span className="px-3 py-1 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-slate-400 font-bold text-[10px] uppercase tracking-widest rounded-lg">{evt.eventType || "-"}</span>
                         </td>
                     )}
                     <td className="px-8 py-5">
@@ -444,10 +444,10 @@ export function EventCaptureScreen({ onNavigate, selectedPlatform, onSelectPlatf
                 ))}
                 {!loadingInitial && filteredEvents.length === 0 && (
                   <tr>
-                    <td colSpan={selectedPlatform === "GA4" ? 4 : 4} className="px-8 py-10 text-center text-gray-500">
+                    <td colSpan={selectedPlatform === "GA4" ? 4 : 4} className="px-8 py-10 text-center text-gray-500 dark:text-slate-400">
                       <div className="flex flex-col items-center">
-                          <AlertCircle className="w-8 h-8 text-gray-300 mb-3" />
-                          <p className="font-semibold text-gray-900">Nenhum evento encontrado.</p>
+                          <AlertCircle className="w-8 h-8 text-gray-300 dark:text-slate-600 mb-3" />
+                          <p className="font-semibold text-gray-900 dark:text-slate-50">Nenhum evento encontrado.</p>
                           {selectedPlatform === "GA4" && (
                               <p className="text-sm mt-1">Clique em <strong className="text-purple-600">Sincronizar GA4</strong> no topo para iniciar a atualização.</p>
                           )}

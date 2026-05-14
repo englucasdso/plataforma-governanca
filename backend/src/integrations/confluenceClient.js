@@ -13,7 +13,7 @@ const CONFLUENCE_BASE_URL = 'https://confluence.bradesco.com.br:8443';
 
 async function exportToJSON(data) {
   console.log(`[exportToJSON] Iniciando exportação para JSON. Quantidade: ${data.length}`);
-  const dataDir = path.resolve('backend/data');
+  const dataDir = path.resolve('backend/src/data');
   await fs.mkdir(dataDir, { recursive: true });
   const filePath = path.resolve(dataDir, 'inventario.json');
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');

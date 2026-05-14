@@ -14,11 +14,11 @@ export function CatalogScreen({ userName, onNavigate }: CatalogScreenProps) {
         <motion.h2 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl font-medium text-gray-900 tracking-tight leading-tight mb-4"
+          className="text-4xl font-medium text-gray-900 dark:text-slate-50 tracking-tight leading-tight mb-4"
         >
           Explore e localize artefatos de mensuração
         </motion.h2>
-        <p className="text-gray-500 text-lg">Busque por mapas, eventos ou jornadas em nosso inventário unificado.</p>
+        <p className="text-gray-500 dark:text-slate-400 text-lg">Busque por mapas, eventos ou jornadas em nosso inventário unificado.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl mx-auto">
@@ -28,14 +28,14 @@ export function CatalogScreen({ userName, onNavigate }: CatalogScreenProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           onClick={() => onNavigate('hub')}
-          className="glass-card p-10 rounded-[40px] border border-gray-100 hover:border-red-200 cursor-pointer group transition-all hover:shadow-2xl hover:shadow-red-500/10 flex flex-col justify-between"
+          className="glass-card p-10 rounded-[40px] border border-gray-100 dark:border-slate-700 hover:border-red-200 cursor-pointer group transition-all hover:shadow-2xl dark:shadow-none hover:shadow-red-500/10 flex flex-col justify-between"
         >
           <div>
             <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                <Landmark className="w-7 h-7 text-[#cc092f]" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-[#cc092f] transition-colors">Hub de Artefatos</h3>
-            <p className="text-gray-500 leading-relaxed font-medium">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-50 mb-3 group-hover:text-[#cc092f] transition-colors">Hub de Artefatos</h3>
+            <p className="text-gray-500 dark:text-slate-400 leading-relaxed font-medium">
               Busque, analise e gerencie todo o ecossistema de mensuração, tags, mapas e documentação técnica em um só lugar. Integrado com Confluence.
             </p>
           </div>
@@ -50,14 +50,14 @@ export function CatalogScreen({ userName, onNavigate }: CatalogScreenProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           onClick={() => onNavigate('events_capture')}
-          className="glass-card p-10 rounded-[40px] border border-gray-100 hover:border-purple-200 cursor-pointer group transition-all hover:shadow-2xl hover:shadow-purple-500/10 flex flex-col justify-between"
+          className="glass-card p-10 rounded-[40px] border border-gray-100 dark:border-slate-700 hover:border-purple-200 cursor-pointer group transition-all hover:shadow-2xl dark:shadow-none hover:shadow-purple-500/10 flex flex-col justify-between"
         >
           <div>
             <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                <Target className="w-7 h-7 text-purple-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">Hub de Eventos</h3>
-            <p className="text-gray-500 leading-relaxed font-medium">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-50 mb-3 group-hover:text-purple-600 transition-colors">Hub de Eventos</h3>
+            <p className="text-gray-500 dark:text-slate-400 leading-relaxed font-medium">
               Valide a captura e roteamento de eventos de conversão no GA4, Meta, TikTok e AppsFlyer através de navegadores autenticados e sessões.
             </p>
           </div>
